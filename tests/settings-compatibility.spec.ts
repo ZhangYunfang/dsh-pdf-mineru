@@ -27,7 +27,7 @@ it('activates with native settings, saves by entry id, updates without remount a
   expect(saved)
     .toMatchObject({ ok: true, value: { config: next } })
   expect(host.entry.fiber).toBe(fiber)
-  expect(host.registerTool).toHaveBeenCalledTimes(2)
+  expect(host.registerTool).toHaveBeenCalledTimes(3)
   expect(await readFile(host.profile.patchPath, 'utf8')).toContain('maxInlineImages: 6')
   await host.ctx.settings.update('mineru-custom', { output: { maxInlineImages: 9 } })
   expect(await host.call('mineru/config.get')).toMatchObject({ ok: true, value: { config: { output: { maxInlineImages: 9 } } } })
@@ -91,7 +91,7 @@ it('rejects cross-type provider fields at native persistence and RPC boundaries 
     expect(await host.call('mineru/config.get')).toMatchObject({ ok: true, value: { config: host.config } })
   }
   expect(host.entry.fiber).toBe(fiber)
-  expect(host.registerTool).toHaveBeenCalledTimes(2)
+  expect(host.registerTool).toHaveBeenCalledTimes(3)
 })
 
 it('persists independent V1 OCR drafts and defaults resets without remounting or losing shared defaults', async () => {
@@ -118,7 +118,7 @@ it('persists independent V1 OCR drafts and defaults resets without remounting or
   expect(await host.call('mineru/config.set', { config: reset }))
     .toMatchObject({ ok: true, value: { config: reset } })
   expect(host.entry.fiber).toBe(fiber)
-  expect(host.registerTool).toHaveBeenCalledTimes(2)
+  expect(host.registerTool).toHaveBeenCalledTimes(3)
 
   await host.ctx.fiber.dispose()
   const restored = await host.start()
@@ -232,5 +232,5 @@ it('updates initially omitted live sections without remounting', async () => {
   expect(await host.call('mineru/config.set', { config: next }))
     .toMatchObject({ ok: true, value: { config: next } })
   expect(host.entry.fiber).toBe(fiber)
-  expect(host.registerTool).toHaveBeenCalledTimes(2)
+  expect(host.registerTool).toHaveBeenCalledTimes(3)
 })

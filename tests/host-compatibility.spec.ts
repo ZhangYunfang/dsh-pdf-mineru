@@ -99,7 +99,7 @@ async function hostFixture(trustedHosts: readonly string[] = []) {
   }
   const expectTools = () => {
     expect([...definitions.keys()].sort()).toEqual(['async_parse_pdf', 'read_pdf'])
-    expect(registerTool).toHaveBeenCalledTimes(2)
+    expect(registerTool).toHaveBeenCalledTimes(3)
     expect(startJob).not.toHaveBeenCalled()
   }
   return {
