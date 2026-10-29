@@ -38,6 +38,8 @@ export interface ContentSelection {
 interface ContentDelivery {
   /** Caller image intent: explicit flag, else the cursor's intent, else true. */
   readonly inlineImages: boolean
+  /** Emit a parallel citation-anchored copy of the delivered text (`<!-- pN bK -->`). */
+  readonly anchors?: boolean
   /** Synchronous wait bound; omitted uses polling.pollTimeoutMs. */
   readonly pollTimeoutMs?: number
 }

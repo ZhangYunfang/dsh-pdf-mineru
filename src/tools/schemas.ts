@@ -85,6 +85,7 @@ export const resultViewSchema = {
     cache_hit: { type: 'boolean', required: true }, result_id: { type: 'string', required: true },
     files: { type: 'array', items: resultFileViewSchema, required: true },
     markdown_content: { type: 'string' },
+    anchored_markdown: { type: 'string' },
     content_status: { type: 'string', enum: ['complete', 'partial', 'not_requested'], required: true },
     markdown_path: { type: 'string' },
     cursor: {
@@ -165,6 +166,10 @@ export const readPdfParameters: ParameterSchemaSpec = {
   ...documentSourceParameters,
   view: { type: 'string', enum: ['content', 'page'], description: 'content (default) reads parsed blocks; page renders one original PDF page locally without invoking a Provider. Requires exactly one page and an image-capable model.' },
   block_id: { type: 'string', description: 'Read one exact stable block ID from a prior result; IDs are bound to that parsed result. Cannot combine with query or cursor.' },
+  anchor: {
+    type: 'boolean',
+    description: 'Also return anchored_markdown: the same delivered text with <!-- pN bK --> citation markers (original page and in-page block ordinal) so a quote can be checked against the page. markdown_content stays unmodified, so cursors are unaffected.',
+  },
   query: { type: 'string', description: 'Case-insensitive literal search (1–256 characters) in selected parsed blocks. Returns bounded snippets and block IDs, not the full matching blocks. Use block_id to read a hit.' },
   expected_sha256: { type: 'string', description: 'Optional source_sha256 from a parsed result. In page view, reject changed sources before rendering.' },
   pages: {

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { MinerUError, failure } from '../domain/errors.js'
 import type { FocusKind, ReadCursorPayload } from '../domain/selection.js'
 import { safeStringSlice, truncateAtCleanBoundary } from '../utils/text.js'
+import { anchoredText } from './anchors.js'
 import { cursorForRemainder } from './read-cursor.js'
 import { formatResultProse } from './prose.js'
 import type { ImageCandidateView, ProjectedBlockRange, ReadDiagnostic, ResultView, ShortenedMetadata, VerificationHint } from './views.js'
@@ -81,7 +82,7 @@ export function fitArtifactListing(view: ResultView): ResultView {
 
 export function deliverReadChunk(options: {
   base: ResultView; text: string; focus: ReadonlySet<FocusKind>; images: readonly ImageCandidateView[];
-  cursor?: ReadCursorPayload; selection?: { block?: string; query?: string }; ranges?: readonly ProjectedBlockRange[]; identity?: string; signal?: AbortSignal; inlineImages?: boolean;
+  cursor?: ReadCursorPayload; selection?: { block?: string; query?: string }; ranges?: readonly ProjectedBlockRange[]; identity?: string; signal?: AbortSignal; inlineImages?: boolean; anchors?: boolean;
   diagnosticsForBlocks?: (ids: ReadonlySet<string>) => readonly ReadDiagnostic[];
   verificationHints?: readonly VerificationHint[]; scopeDiagnostics?: readonly ReadDiagnostic[];
 }): ResultView {
@@ -121,7 +122,9 @@ export function deliverReadChunk(options: {
     ])
     const { warnings: _scopeWarnings, provenance: _provenance, ...chunkBase } = base
     const view: ResultView = {
-      ...chunkBase, ...(offset === 0 && base.provenance ? { provenance: base.provenance } : {}), markdown_content: content, content_status: partial ? 'partial' : 'complete',
+      ...chunkBase, ...(offset === 0 && base.provenance ? { provenance: base.provenance } : {}), markdown_content: content,
+      ...(options.anchors === true ? { anchored_markdown: anchoredText(content, ranges, offset) } : {}),
+      content_status: partial ? 'partial' : 'complete',
       ...(partial && base.files.some(file => file.artifacts.length > 0) ? { files: base.files.map(file => ({ ...file, artifacts: [], artifacts_truncated: true })) } : {}),
       cursor: partial ? cursorForRemainder(base.result_id, base.pages, focus, offset + content.length, { ...selection, projection, inline_images: options.inlineImages ?? cursor?.inline_images ?? true }) : null,
       ...(chunkImages.length ? { ordered_images: chunkImages.slice(0, 20).map(image => ({ ...image, ...(image.caption ? { caption: safeStringSlice(image.caption, 256) } : {}) })) } : {}),

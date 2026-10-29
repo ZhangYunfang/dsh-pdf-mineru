@@ -44,7 +44,7 @@ export class ReaderService {
       }
       const document = openPublishedDocument(published, this.options.results)
       const selection = query.kind === 'continue' ? cursorSelection(query.cursor) : query.selection
-      const chunk = await projectContent(document, selection, cursor, query.inlineImages, config.output.maxInlineChars, signal)
+      const chunk = await projectContent(document, selection, cursor, query.inlineImages, config.output.maxInlineChars, signal, query.anchors)
       return await finishContentChunk(chunk, images, query.inlineImages, config.output.maxInlineImages, signal)
     }, signal)
   }
@@ -119,6 +119,7 @@ async function projectContent(
   inlineImageIntent: boolean,
   limit: number,
   signal: AbortSignal,
+  anchors?: boolean,
 ): Promise<ResultView> {
   signal.throwIfAborted()
   const { manifest, source, sourceFile } = document.result
@@ -202,7 +203,7 @@ async function projectContent(
     code: item.code, scope: item.scope, message: item.message,
   }))
   return deliverReadChunk({ base: { ...base, ...(notices.length ? { warnings: boundedWarnings(warningsOf()) } : {}) }, text, focus, images, ranges, cursor, signal, identity: JSON.stringify({ index_version: DOCUMENT_INDEX_VERSION, reader_version: READ_CURSOR_VERSION, files: manifest.files }),
-    inlineImages: inlineImageIntent, verificationHints, scopeDiagnostics,
+    inlineImages: inlineImageIntent, ...(anchors === true ? { anchors } : {}), verificationHints, scopeDiagnostics,
     diagnosticsForBlocks: ids => collectBlockDiagnostics(rawBlocks, manifest.id, new Set([...ids].map(id => Number(id.slice(id.lastIndexOf(':b') + 2))))),
     selection: { ...(blockId ? { block: blockId } : {}), ...(query ? { query } : {}) },
   })

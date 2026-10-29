@@ -16,7 +16,7 @@ import { renderResult, type MutableJsonView } from './render.js'
 import { readPdfParameters, resultViewSchema } from './schemas.js'
 import type { ToolDependencies } from './index.js'
 
-const READ_PARAMETER_FIELDS = new Set(['file_path', 'attachment_id', 'pages', 'focus', 'inline_images', 'poll_timeout_ms', 'cursor', 'block_id', 'query', 'view', 'expected_sha256'])
+const READ_PARAMETER_FIELDS = new Set(['file_path', 'attachment_id', 'pages', 'focus', 'inline_images', 'anchor', 'poll_timeout_ms', 'cursor', 'block_id', 'query', 'view', 'expected_sha256'])
 const PAGE_VIEW_EXCLUDED = ['focus', 'cursor', 'query', 'block_id', 'inline_images', 'poll_timeout_ms']
 
 export interface ReadPdfArguments {
@@ -63,6 +63,8 @@ export function parseReadArguments(args: unknown): ReadPdfArguments {
   if ((obj.query !== undefined || obj.block_id !== undefined) && [...parseFocus(obj.focus)].some(f => f === 'toc' || f === 'artifacts')) throw invalidRequest('query/block_id cannot be combined with toc or artifacts focus')
   if (obj.inline_images !== undefined && typeof obj.inline_images !== 'boolean') throw invalidRequest('inline_images must be a boolean')
   const inlineImages = obj.inline_images as boolean | undefined
+  if (obj.anchor !== undefined && typeof obj.anchor !== 'boolean') throw invalidRequest('anchor must be a boolean')
+  const anchors = obj.anchor as boolean | undefined
 
   if (obj.cursor !== undefined) {
     if (typeof obj.cursor !== 'string' || obj.cursor.trim() === '') throw invalidRequest('cursor must be a non-empty string')
@@ -73,7 +75,7 @@ export function parseReadArguments(args: unknown): ReadPdfArguments {
     } catch (error) {
       throw invalidRequest(error instanceof Error ? error.message : 'Cursor is malformed; start over without a cursor', error)
     }
-    return { source, query: { kind: 'continue', cursor, inlineImages: inlineImages ?? cursor.inline_images, ...wait } }
+    return { source, query: { kind: 'continue', cursor, inlineImages: inlineImages ?? cursor.inline_images, ...(anchors === undefined ? {} : { anchors }), ...wait } }
   }
 
   let pages: Set<number> | undefined
@@ -91,6 +93,7 @@ export function parseReadArguments(args: unknown): ReadPdfArguments {
       kind: 'select',
       selection: { ...(pages === undefined ? {} : { pages }), focus, ...(target === undefined ? {} : { target }) },
       inlineImages: inlineImages ?? true,
+      ...(anchors === undefined ? {} : { anchors }),
       ...wait,
     },
   }

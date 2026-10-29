@@ -98,6 +98,12 @@ export interface ResultView {
   readonly result_id: string
   readonly files: readonly ResultFileView[]
   readonly markdown_content?: string
+  /**
+   * Same delivered text with `<!-- pN bK -->` citation markers. Present only
+   * when the caller asked for anchors, and never used for cursor offsets:
+   * `markdown_content` stays the byte-stable projection offset target.
+   */
+  readonly anchored_markdown?: string
   readonly content_status: ContentStatus
   readonly markdown_path?: string
   readonly manifest_path?: string
