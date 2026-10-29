@@ -75,7 +75,9 @@
     "check": "pnpm run lint && pnpm run typecheck && pnpm run build && pnpm test",
     "watch": "tsdown --config tsdown.config.ts --watch",
     "smoke:official-v4": "node scripts/smoke-official-v4.mjs",
-    "smoke:reader-local": "node scripts/smoke-reader-local.mjs"
+    "smoke:reader-local": "node scripts/smoke-reader-local.mjs",
+    "compat:01x": "node scripts/apply-dsh-01x-compat.mjs",
+    "build:01x": "node scripts/clean.mjs && tsdown --config tsdown.config.ts && node scripts/apply-dsh-01x-compat.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "1.0.9",

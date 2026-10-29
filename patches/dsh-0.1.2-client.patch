@@ -1,0 +1,281 @@
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -7,6 +7,48 @@
+ 		let react = require("react");
+ 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+ 		let react_jsx_runtime = require("react/jsx-runtime");
++		// --- DSH 0.1.x compatibility: primitives added by 0.2.x are absent from the 0.1.x client table ---
++		const _deepseek_ai_dsh_client_ui_primitives_compat = (() => {
++			const base = _deepseek_ai_dsh_client_ui_primitives || {};
++			const Missing = () => null;
++			return Object.assign({}, base, {
++				Checkbox: base.Checkbox ?? function CheckboxCompat({ label, checked, disabled, onChange }) {
++					return react.createElement("label", null,
++						react.createElement("input", { type: "checkbox", checked: !!checked, disabled: !!disabled,
++							onChange: () => { onChange?.(); } }),
++						label === void 0 ? null : " " + label);
++				},
++				PathLabel: base.PathLabel ?? function PathLabelCompat({ path }) {
++					return react.createElement("code", null, path);
++				},
++				SegmentedTabs: base.SegmentedTabs ?? function SegmentedTabsCompat({ items, value, onChange, label }) {
++					return react.createElement("div", { role: "tablist", "aria-label": label, style: { display: "flex", gap: "6px" } },
++						(Array.isArray(items) ? items : []).map((item) => react.createElement("button", {
++							key: item.value, type: "button", role: "tab", "aria-selected": item.value === value,
++							onClick: () => { onChange?.(item.value); },
++							style: { padding: "4px 10px", borderRadius: "8px", border: "1px solid rgba(79,214,232,.35)",
++								background: item.value === value ? "rgba(79,214,232,.18)" : "transparent", color: "inherit", cursor: "pointer" },
++						}, item.label)));
++				},
++				Switch: base.Switch ?? function SwitchCompat({ checked, onChange, label, disabled }) {
++					return react.createElement("button", { type: "button", role: "switch", "aria-label": label, "aria-checked": !!checked, disabled: !!disabled,
++						onClick: () => { onChange?.(!checked); },
++						style: { width: "38px", height: "22px", borderRadius: "11px", border: "1px solid rgba(79,214,232,.45)", cursor: "pointer",
++							background: checked ? "rgba(79,214,232,.45)" : "rgba(255,255,255,.12)" } });
++				},
++				Tag: base.Tag ?? function TagCompat({ tone, children }) {
++					return react.createElement("span", { "data-tone": tone,
++						style: { display: "inline-flex", padding: "1px 8px", borderRadius: "999px", fontSize: "11px",
++							border: "1px solid rgba(79,214,232,.35)", color: "inherit" } }, children);
++				},
++				IconCheckCircleOutlineRegular: base.IconCheckCircleOutlineRegular ?? Missing,
++				IconCheckOutlineRegular: base.IconCheckOutlineRegular ?? Missing,
++				IconChevronDownOutlineRegular: base.IconChevronDownOutlineRegular ?? Missing,
++				IconRefreshOutlineRegular: base.IconRefreshOutlineRegular ?? Missing,
++				IconTrashOutlineRegular: base.IconTrashOutlineRegular ?? Missing,
++			});
++		})();
++		_deepseek_ai_dsh_client_ui_primitives = _deepseek_ai_dsh_client_ui_primitives_compat;
+ 		//#region src/client/settings-context.ts
+ 		const SettingsContext = (0, react.createContext)(null);
+ 		/** Loaded settings, transport and translator for components below SettingsPage. */
+@@ -557,35 +599,35 @@
+ 			return updateConfigSection(config, spec.section, { [spec.key]: base });
+ 		}
+ 		//#endregion
+-		//#region \0dsh-css:/Users/zyf/Project/DSH_WorkSpace/dsh-pdf-mineru/src/client/components/Field.module.css.mjs
+-		const css$4 = ".dshm_PWTbQq_section{flex-direction:column;gap:8px;display:flex}.dshm_PWTbQq_sectionHead{flex-direction:column;gap:2px;padding:0 4px;display:flex}.dshm_PWTbQq_sectionTitle{color:var(--dsw-alias-label-primary);margin:0;font-size:14px;font-weight:500;line-height:20px}.dshm_PWTbQq_sectionHint,.dshm_PWTbQq_hint,.dshm_PWTbQq_note{color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;line-height:18px}.dshm_PWTbQq_card{box-sizing:border-box;border:.5px solid var(--dsw-alias-settings-card-stroke);border-radius:var(--dsw-radius-xl);background:var(--dsw-alias-settings-card-fill);padding:4px 16px;container-type:inline-size}.dshm_PWTbQq_row{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 16px;padding:12px 0;display:grid}.dshm_PWTbQq_card>*+*,.dshm_PWTbQq_group>*+*{border-top:.5px solid var(--dsw-alias-border-l2)}.dshm_PWTbQq_footer{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;padding:12px 0;display:flex}.dshm_PWTbQq_group{flex-direction:column;display:flex}.dshm_PWTbQq_stacked{grid-template-columns:minmax(0,1fr)}.dshm_PWTbQq_text{flex-direction:column;gap:2px;min-width:0;display:flex}.dshm_PWTbQq_label{color:var(--dsw-alias-label-primary);font-size:13px;font-weight:500;line-height:20px}.dshm_PWTbQq_control{flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;min-width:0;display:flex}.dshm_PWTbQq_stacked .dshm_PWTbQq_control{justify-content:flex-start}.dshm_PWTbQq_note{text-align:end;color:var(--dsw-alias-state-warn-label);flex-basis:100%}.dshm_PWTbQq_stacked .dshm_PWTbQq_note{text-align:start}.dshm_PWTbQq_error{text-align:end;color:var(--dsw-alias-state-error-primary);grid-column:1/-1;margin:0;font-size:12px;line-height:18px}.dshm_PWTbQq_input{box-sizing:border-box;flex:240px;min-width:0}.dshm_PWTbQq_selectWrap{display:inline-flex;position:relative}.dshm_PWTbQq_select{appearance:none;box-sizing:border-box;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1);min-width:200px;height:32px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;padding:0 32px 0 10px;font-size:14px;line-height:22px}.dshm_PWTbQq_select:focus-visible{border-color:var(--dsw-alias-state-business-primary);outline:none}.dshm_PWTbQq_selectIcon{pointer-events:none;color:var(--dsw-alias-label-tertiary);position:absolute;top:8px;right:10px}.dshm_PWTbQq_number{align-items:center;gap:8px;display:inline-flex}.dshm_PWTbQq_numberInput{box-sizing:border-box;width:112px}.dshm_PWTbQq_unit{min-width:48px;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}.dshm_PWTbQq_sectionToggle{border-radius:var(--dsw-radius-sm);font:inherit;color:inherit;cursor:pointer;background:0 0;border:0;align-items:center;gap:4px;margin:0 -4px;padding:0 4px;display:inline-flex}.dshm_PWTbQq_disclosure{border-radius:var(--dsw-radius-sm);font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:0;align-self:flex-start;align-items:center;gap:4px;padding:2px 4px;font-size:13px;line-height:20px;display:inline-flex}.dshm_PWTbQq_disclosure:hover{color:var(--dsw-alias-label-primary)}.dshm_PWTbQq_sectionToggle:focus-visible,.dshm_PWTbQq_disclosure:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}.dshm_PWTbQq_chevron{transition:transform .16s;transform:rotate(-90deg)}.dshm_PWTbQq_sectionToggle[aria-expanded=true] .dshm_PWTbQq_chevron,.dshm_PWTbQq_disclosure[aria-expanded=true] .dshm_PWTbQq_chevron{transform:none}@media (prefers-reduced-motion:reduce){.dshm_PWTbQq_chevron{transition:none}}@container (width<=480px){.dshm_PWTbQq_row:not(.dshm_PWTbQq_compact){grid-template-columns:minmax(0,1fr)}.dshm_PWTbQq_row:not(.dshm_PWTbQq_compact) .dshm_PWTbQq_control{justify-content:flex-start}.dshm_PWTbQq_selectWrap,.dshm_PWTbQq_select{width:100%}.dshm_PWTbQq_note,.dshm_PWTbQq_error{text-align:start}}";
++		//#region \0dsh-css:/home/runner/work/dsh-pdf-mineru/dsh-pdf-mineru/src/client/components/Field.module.css.mjs
++		const css$4 = ".dshm_IfKNZG_section{flex-direction:column;gap:8px;display:flex}.dshm_IfKNZG_sectionHead{flex-direction:column;gap:2px;padding:0 4px;display:flex}.dshm_IfKNZG_sectionTitle{color:var(--dsw-alias-label-primary);margin:0;font-size:14px;font-weight:500;line-height:20px}.dshm_IfKNZG_sectionHint,.dshm_IfKNZG_hint,.dshm_IfKNZG_note{color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;line-height:18px}.dshm_IfKNZG_card{box-sizing:border-box;border:.5px solid var(--dsw-alias-settings-card-stroke);border-radius:var(--dsw-radius-xl);background:var(--dsw-alias-settings-card-fill);padding:4px 16px;container-type:inline-size}.dshm_IfKNZG_row{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 16px;padding:12px 0;display:grid}.dshm_IfKNZG_card>*+*,.dshm_IfKNZG_group>*+*{border-top:.5px solid var(--dsw-alias-border-l2)}.dshm_IfKNZG_footer{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;padding:12px 0;display:flex}.dshm_IfKNZG_group{flex-direction:column;display:flex}.dshm_IfKNZG_stacked{grid-template-columns:minmax(0,1fr)}.dshm_IfKNZG_text{flex-direction:column;gap:2px;min-width:0;display:flex}.dshm_IfKNZG_label{color:var(--dsw-alias-label-primary);font-size:13px;font-weight:500;line-height:20px}.dshm_IfKNZG_control{flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;min-width:0;display:flex}.dshm_IfKNZG_stacked .dshm_IfKNZG_control{justify-content:flex-start}.dshm_IfKNZG_note{text-align:end;color:var(--dsw-alias-state-warn-label);flex-basis:100%}.dshm_IfKNZG_stacked .dshm_IfKNZG_note{text-align:start}.dshm_IfKNZG_error{text-align:end;color:var(--dsw-alias-state-error-primary);grid-column:1/-1;margin:0;font-size:12px;line-height:18px}.dshm_IfKNZG_input{box-sizing:border-box;flex:240px;min-width:0}.dshm_IfKNZG_selectWrap{display:inline-flex;position:relative}.dshm_IfKNZG_select{appearance:none;box-sizing:border-box;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1);min-width:200px;height:32px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;padding:0 32px 0 10px;font-size:14px;line-height:22px}.dshm_IfKNZG_select:focus-visible{border-color:var(--dsw-alias-state-business-primary);outline:none}.dshm_IfKNZG_selectIcon{pointer-events:none;color:var(--dsw-alias-label-tertiary);position:absolute;top:8px;right:10px}.dshm_IfKNZG_number{align-items:center;gap:8px;display:inline-flex}.dshm_IfKNZG_numberInput{box-sizing:border-box;width:112px}.dshm_IfKNZG_unit{min-width:48px;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}.dshm_IfKNZG_sectionToggle{border-radius:var(--dsw-radius-sm);font:inherit;color:inherit;cursor:pointer;background:0 0;border:0;align-items:center;gap:4px;margin:0 -4px;padding:0 4px;display:inline-flex}.dshm_IfKNZG_disclosure{border-radius:var(--dsw-radius-sm);font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:0;align-self:flex-start;align-items:center;gap:4px;padding:2px 4px;font-size:13px;line-height:20px;display:inline-flex}.dshm_IfKNZG_disclosure:hover{color:var(--dsw-alias-label-primary)}.dshm_IfKNZG_sectionToggle:focus-visible,.dshm_IfKNZG_disclosure:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}.dshm_IfKNZG_chevron{transition:transform .16s;transform:rotate(-90deg)}.dshm_IfKNZG_sectionToggle[aria-expanded=true] .dshm_IfKNZG_chevron,.dshm_IfKNZG_disclosure[aria-expanded=true] .dshm_IfKNZG_chevron{transform:none}@media (prefers-reduced-motion:reduce){.dshm_IfKNZG_chevron{transition:none}}@container (width<=480px){.dshm_IfKNZG_row:not(.dshm_IfKNZG_compact){grid-template-columns:minmax(0,1fr)}.dshm_IfKNZG_row:not(.dshm_IfKNZG_compact) .dshm_IfKNZG_control{justify-content:flex-start}.dshm_IfKNZG_selectWrap,.dshm_IfKNZG_select{width:100%}.dshm_IfKNZG_note,.dshm_IfKNZG_error{text-align:start}}";
+ 		const classMap$4 = {
+-			"card": "dshm_PWTbQq_card",
+-			"chevron": "dshm_PWTbQq_chevron",
+-			"compact": "dshm_PWTbQq_compact",
+-			"control": "dshm_PWTbQq_control",
+-			"disclosure": "dshm_PWTbQq_disclosure",
+-			"error": "dshm_PWTbQq_error",
+-			"footer": "dshm_PWTbQq_footer",
+-			"group": "dshm_PWTbQq_group",
+-			"hint": "dshm_PWTbQq_hint",
+-			"input": "dshm_PWTbQq_input",
+-			"label": "dshm_PWTbQq_label",
+-			"note": "dshm_PWTbQq_note",
+-			"number": "dshm_PWTbQq_number",
+-			"numberInput": "dshm_PWTbQq_numberInput",
+-			"row": "dshm_PWTbQq_row",
+-			"section": "dshm_PWTbQq_section",
+-			"sectionHead": "dshm_PWTbQq_sectionHead",
+-			"sectionHint": "dshm_PWTbQq_sectionHint",
+-			"sectionTitle": "dshm_PWTbQq_sectionTitle",
+-			"sectionToggle": "dshm_PWTbQq_sectionToggle",
+-			"select": "dshm_PWTbQq_select",
+-			"selectIcon": "dshm_PWTbQq_selectIcon",
+-			"selectWrap": "dshm_PWTbQq_selectWrap",
+-			"stacked": "dshm_PWTbQq_stacked",
+-			"text": "dshm_PWTbQq_text",
+-			"unit": "dshm_PWTbQq_unit"
++			"card": "dshm_IfKNZG_card",
++			"chevron": "dshm_IfKNZG_chevron",
++			"compact": "dshm_IfKNZG_compact",
++			"control": "dshm_IfKNZG_control",
++			"disclosure": "dshm_IfKNZG_disclosure",
++			"error": "dshm_IfKNZG_error",
++			"footer": "dshm_IfKNZG_footer",
++			"group": "dshm_IfKNZG_group",
++			"hint": "dshm_IfKNZG_hint",
++			"input": "dshm_IfKNZG_input",
++			"label": "dshm_IfKNZG_label",
++			"note": "dshm_IfKNZG_note",
++			"number": "dshm_IfKNZG_number",
++			"numberInput": "dshm_IfKNZG_numberInput",
++			"row": "dshm_IfKNZG_row",
++			"section": "dshm_IfKNZG_section",
++			"sectionHead": "dshm_IfKNZG_sectionHead",
++			"sectionHint": "dshm_IfKNZG_sectionHint",
++			"sectionTitle": "dshm_IfKNZG_sectionTitle",
++			"sectionToggle": "dshm_IfKNZG_sectionToggle",
++			"select": "dshm_IfKNZG_select",
++			"selectIcon": "dshm_IfKNZG_selectIcon",
++			"selectWrap": "dshm_IfKNZG_selectWrap",
++			"stacked": "dshm_IfKNZG_stacked",
++			"text": "dshm_IfKNZG_text",
++			"unit": "dshm_IfKNZG_unit"
+ 		};
+ 		const tagId$4 = "dsh-pdf-mineru/Field.module.css";
+ 		if (typeof document !== "undefined") {
+@@ -825,15 +867,15 @@
+ 			});
+ 		}
+ 		//#endregion
+-		//#region \0dsh-css:/Users/zyf/Project/DSH_WorkSpace/dsh-pdf-mineru/src/client/components/ActionBar.module.css.mjs
+-		const css$3 = ".dshm_98Lj2q_dock{z-index:1;pointer-events:none;justify-content:center;display:flex;position:sticky;bottom:16px}.dshm_98Lj2q_bar{box-sizing:border-box;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-2);width:min(100%,560px);box-shadow:var(--dsw-elevation-prominent);pointer-events:auto;border:0;align-items:center;gap:8px;margin:0;padding:6px 6px 6px 16px;animation:.16s ease-out dshm_98Lj2q_rise;display:flex}.dshm_98Lj2q_status{white-space:nowrap;text-overflow:ellipsis;min-width:0;color:var(--dsw-alias-label-secondary);flex:1;margin:0;font-size:13px;line-height:20px;overflow:hidden}.dshm_98Lj2q_problem{color:var(--dsw-alias-state-error-primary)}.dshm_98Lj2q_saved{width:auto;color:var(--dsw-alias-state-success-primary);gap:6px;padding:8px 14px;font-size:13px;line-height:20px}@keyframes dshm_98Lj2q_rise{0%{opacity:0;transform:translateY(8px)}}@media (prefers-reduced-motion:reduce){.dshm_98Lj2q_bar{animation:none}}";
++		//#region \0dsh-css:/home/runner/work/dsh-pdf-mineru/dsh-pdf-mineru/src/client/components/ActionBar.module.css.mjs
++		const css$3 = ".dshm_XgOfNa_dock{z-index:1;pointer-events:none;justify-content:center;display:flex;position:sticky;bottom:16px}.dshm_XgOfNa_bar{box-sizing:border-box;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-2);width:min(100%,560px);box-shadow:var(--dsw-elevation-prominent);pointer-events:auto;border:0;align-items:center;gap:8px;margin:0;padding:6px 6px 6px 16px;animation:.16s ease-out dshm_XgOfNa_rise;display:flex}.dshm_XgOfNa_status{white-space:nowrap;text-overflow:ellipsis;min-width:0;color:var(--dsw-alias-label-secondary);flex:1;margin:0;font-size:13px;line-height:20px;overflow:hidden}.dshm_XgOfNa_problem{color:var(--dsw-alias-state-error-primary)}.dshm_XgOfNa_saved{width:auto;color:var(--dsw-alias-state-success-primary);gap:6px;padding:8px 14px;font-size:13px;line-height:20px}@keyframes dshm_XgOfNa_rise{0%{opacity:0;transform:translateY(8px)}}@media (prefers-reduced-motion:reduce){.dshm_XgOfNa_bar{animation:none}}";
+ 		const classMap$3 = {
+-			"bar": "dshm_98Lj2q_bar",
+-			"dock": "dshm_98Lj2q_dock",
+-			"problem": "dshm_98Lj2q_problem",
+-			"rise": "dshm_98Lj2q_rise",
+-			"saved": "dshm_98Lj2q_saved",
+-			"status": "dshm_98Lj2q_status"
++			"bar": "dshm_XgOfNa_bar",
++			"dock": "dshm_XgOfNa_dock",
++			"problem": "dshm_XgOfNa_problem",
++			"rise": "dshm_XgOfNa_rise",
++			"saved": "dshm_XgOfNa_saved",
++			"status": "dshm_XgOfNa_status"
+ 		};
+ 		const tagId$3 = "dsh-pdf-mineru/ActionBar.module.css";
+ 		if (typeof document !== "undefined") {
+@@ -1115,21 +1157,21 @@
+ 			});
+ 		}
+ 		//#endregion
+-		//#region \0dsh-css:/Users/zyf/Project/DSH_WorkSpace/dsh-pdf-mineru/src/client/components/Connection.module.css.mjs
+-		const css$2 = ".dshm_GNyPXa_providers{flex:100%;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:8px;display:grid}.dshm_GNyPXa_provider{border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-1);cursor:pointer;flex-direction:column;gap:2px;padding:10px 12px;display:flex;position:relative}.dshm_GNyPXa_provider:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshm_GNyPXa_providerChecked,.dshm_GNyPXa_providerChecked:hover{border-color:var(--dsw-alias-label-primary);box-shadow:inset 0 0 0 .5px var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1)}.dshm_GNyPXa_provider:has(.dshm_GNyPXa_radio:focus-visible){outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshm_GNyPXa_radio{opacity:0;cursor:pointer;margin:0;position:absolute;inset:0}.dshm_GNyPXa_providerTitle{color:var(--dsw-alias-label-primary);font-size:13px;font-weight:500;line-height:20px}.dshm_GNyPXa_providerDesc{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.dshm_GNyPXa_test{flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 0;display:flex}.dshm_GNyPXa_probe{flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0;margin:0;font-size:12px;line-height:18px;display:flex}.dshm_GNyPXa_probeText{color:var(--dsw-alias-label-primary)}.dshm_GNyPXa_probeDetail{color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}.dshm_GNyPXa_probeDetail:before{content:\"·\";margin-right:8px}.dshm_GNyPXa_options{flex-direction:column;padding:10px 0;display:flex}.dshm_GNyPXa_options>:nth-child(2){margin-top:6px}.dshm_GNyPXa_checks{flex-wrap:wrap;gap:16px;display:flex}";
++		//#region \0dsh-css:/home/runner/work/dsh-pdf-mineru/dsh-pdf-mineru/src/client/components/Connection.module.css.mjs
++		const css$2 = ".dshm_3_aOgW_providers{flex:100%;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:8px;display:grid}.dshm_3_aOgW_provider{border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-1);cursor:pointer;flex-direction:column;gap:2px;padding:10px 12px;display:flex;position:relative}.dshm_3_aOgW_provider:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshm_3_aOgW_providerChecked,.dshm_3_aOgW_providerChecked:hover{border-color:var(--dsw-alias-label-primary);box-shadow:inset 0 0 0 .5px var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1)}.dshm_3_aOgW_provider:has(.dshm_3_aOgW_radio:focus-visible){outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshm_3_aOgW_radio{opacity:0;cursor:pointer;margin:0;position:absolute;inset:0}.dshm_3_aOgW_providerTitle{color:var(--dsw-alias-label-primary);font-size:13px;font-weight:500;line-height:20px}.dshm_3_aOgW_providerDesc{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.dshm_3_aOgW_test{flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 0;display:flex}.dshm_3_aOgW_probe{flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0;margin:0;font-size:12px;line-height:18px;display:flex}.dshm_3_aOgW_probeText{color:var(--dsw-alias-label-primary)}.dshm_3_aOgW_probeDetail{color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}.dshm_3_aOgW_probeDetail:before{content:\"·\";margin-right:8px}.dshm_3_aOgW_options{flex-direction:column;padding:10px 0;display:flex}.dshm_3_aOgW_options>:nth-child(2){margin-top:6px}.dshm_3_aOgW_checks{flex-wrap:wrap;gap:16px;display:flex}";
+ 		const classMap$2 = {
+-			"checks": "dshm_GNyPXa_checks",
+-			"options": "dshm_GNyPXa_options",
+-			"probe": "dshm_GNyPXa_probe",
+-			"probeDetail": "dshm_GNyPXa_probeDetail",
+-			"probeText": "dshm_GNyPXa_probeText",
+-			"provider": "dshm_GNyPXa_provider",
+-			"providerChecked": "dshm_GNyPXa_providerChecked",
+-			"providerDesc": "dshm_GNyPXa_providerDesc",
+-			"providers": "dshm_GNyPXa_providers",
+-			"providerTitle": "dshm_GNyPXa_providerTitle",
+-			"radio": "dshm_GNyPXa_radio",
+-			"test": "dshm_GNyPXa_test"
++			"checks": "dshm_3_aOgW_checks",
++			"options": "dshm_3_aOgW_options",
++			"probe": "dshm_3_aOgW_probe",
++			"probeDetail": "dshm_3_aOgW_probeDetail",
++			"probeText": "dshm_3_aOgW_probeText",
++			"provider": "dshm_3_aOgW_provider",
++			"providerChecked": "dshm_3_aOgW_providerChecked",
++			"providerDesc": "dshm_3_aOgW_providerDesc",
++			"providers": "dshm_3_aOgW_providers",
++			"providerTitle": "dshm_3_aOgW_providerTitle",
++			"radio": "dshm_3_aOgW_radio",
++			"test": "dshm_3_aOgW_test"
+ 		};
+ 		const tagId$2 = "dsh-pdf-mineru/Connection.module.css";
+ 		if (typeof document !== "undefined") {
+@@ -1493,27 +1535,27 @@
+ 			] });
+ 		}
+ 		//#endregion
+-		//#region \0dsh-css:/Users/zyf/Project/DSH_WorkSpace/dsh-pdf-mineru/src/client/components/Storage.module.css.mjs
+-		const css$1 = ".dshm_31pDsq_path{min-width:0;max-width:100%;display:flex}.dshm_31pDsq_value{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}.dshm_31pDsq_usage{flex-direction:column;gap:8px;padding:14px 0 10px;display:flex}.dshm_31pDsq_tiles{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 16px;display:grid}.dshm_31pDsq_tile{flex-direction:column;gap:2px;min-width:0;display:flex}.dshm_31pDsq_tileLabel,.dshm_31pDsq_tileMeta{white-space:nowrap;text-overflow:ellipsis;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;overflow:hidden}.dshm_31pDsq_tileValue{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-size:15px;font-weight:500;line-height:22px}.dshm_31pDsq_usageFoot{justify-content:space-between;align-items:center;gap:8px;display:flex}.dshm_31pDsq_foot{min-width:0;color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;line-height:18px}.dshm_31pDsq_error{color:var(--dsw-alias-state-error-primary);margin:0;padding:10px 0;font-size:12px;line-height:18px}.dshm_31pDsq_quarantine{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 0;display:flex}.dshm_31pDsq_entries{flex-direction:column;align-self:stretch;gap:6px;margin:0;padding:0 0 0 22px;list-style:none;display:flex}.dshm_31pDsq_entry{flex-wrap:wrap;align-items:center;gap:4px 12px;display:flex}.dshm_31pDsq_entryMeta{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.dshm_31pDsq_dialogBody{color:var(--dsw-alias-label-primary);margin:0;font-size:14px;line-height:22px}.dshm_31pDsq_dialogNote{color:var(--dsw-alias-label-secondary);margin:4px 0 0;font-size:13px;line-height:20px}.dshm_31pDsq_dialogFooter{justify-content:flex-end;gap:8px;display:flex}@container (width<=480px){.dshm_31pDsq_tiles{grid-template-columns:minmax(0,1fr)}.dshm_31pDsq_tile{flex-direction:row;align-items:baseline;gap:8px}.dshm_31pDsq_tileLabel{flex:1}}";
++		//#region \0dsh-css:/home/runner/work/dsh-pdf-mineru/dsh-pdf-mineru/src/client/components/Storage.module.css.mjs
++		const css$1 = ".dshm_Qw-epq_path{min-width:0;max-width:100%;display:flex}.dshm_Qw-epq_value{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}.dshm_Qw-epq_usage{flex-direction:column;gap:8px;padding:14px 0 10px;display:flex}.dshm_Qw-epq_tiles{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 16px;display:grid}.dshm_Qw-epq_tile{flex-direction:column;gap:2px;min-width:0;display:flex}.dshm_Qw-epq_tileLabel,.dshm_Qw-epq_tileMeta{white-space:nowrap;text-overflow:ellipsis;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;overflow:hidden}.dshm_Qw-epq_tileValue{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-size:15px;font-weight:500;line-height:22px}.dshm_Qw-epq_usageFoot{justify-content:space-between;align-items:center;gap:8px;display:flex}.dshm_Qw-epq_foot{min-width:0;color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;line-height:18px}.dshm_Qw-epq_error{color:var(--dsw-alias-state-error-primary);margin:0;padding:10px 0;font-size:12px;line-height:18px}.dshm_Qw-epq_quarantine{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 0;display:flex}.dshm_Qw-epq_entries{flex-direction:column;align-self:stretch;gap:6px;margin:0;padding:0 0 0 22px;list-style:none;display:flex}.dshm_Qw-epq_entry{flex-wrap:wrap;align-items:center;gap:4px 12px;display:flex}.dshm_Qw-epq_entryMeta{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.dshm_Qw-epq_dialogBody{color:var(--dsw-alias-label-primary);margin:0;font-size:14px;line-height:22px}.dshm_Qw-epq_dialogNote{color:var(--dsw-alias-label-secondary);margin:4px 0 0;font-size:13px;line-height:20px}.dshm_Qw-epq_dialogFooter{justify-content:flex-end;gap:8px;display:flex}@container (width<=480px){.dshm_Qw-epq_tiles{grid-template-columns:minmax(0,1fr)}.dshm_Qw-epq_tile{flex-direction:row;align-items:baseline;gap:8px}.dshm_Qw-epq_tileLabel{flex:1}}";
+ 		const classMap$1 = {
+-			"dialogBody": "dshm_31pDsq_dialogBody",
+-			"dialogFooter": "dshm_31pDsq_dialogFooter",
+-			"dialogNote": "dshm_31pDsq_dialogNote",
+-			"entries": "dshm_31pDsq_entries",
+-			"entry": "dshm_31pDsq_entry",
+-			"entryMeta": "dshm_31pDsq_entryMeta",
+-			"error": "dshm_31pDsq_error",
+-			"foot": "dshm_31pDsq_foot",
+-			"path": "dshm_31pDsq_path",
+-			"quarantine": "dshm_31pDsq_quarantine",
+-			"tile": "dshm_31pDsq_tile",
+-			"tileLabel": "dshm_31pDsq_tileLabel",
+-			"tileMeta": "dshm_31pDsq_tileMeta",
+-			"tiles": "dshm_31pDsq_tiles",
+-			"tileValue": "dshm_31pDsq_tileValue",
+-			"usage": "dshm_31pDsq_usage",
+-			"usageFoot": "dshm_31pDsq_usageFoot",
+-			"value": "dshm_31pDsq_value"
++			"dialogBody": "dshm_Qw-epq_dialogBody",
++			"dialogFooter": "dshm_Qw-epq_dialogFooter",
++			"dialogNote": "dshm_Qw-epq_dialogNote",
++			"entries": "dshm_Qw-epq_entries",
++			"entry": "dshm_Qw-epq_entry",
++			"entryMeta": "dshm_Qw-epq_entryMeta",
++			"error": "dshm_Qw-epq_error",
++			"foot": "dshm_Qw-epq_foot",
++			"path": "dshm_Qw-epq_path",
++			"quarantine": "dshm_Qw-epq_quarantine",
++			"tile": "dshm_Qw-epq_tile",
++			"tileLabel": "dshm_Qw-epq_tileLabel",
++			"tileMeta": "dshm_Qw-epq_tileMeta",
++			"tiles": "dshm_Qw-epq_tiles",
++			"tileValue": "dshm_Qw-epq_tileValue",
++			"usage": "dshm_Qw-epq_usage",
++			"usageFoot": "dshm_Qw-epq_usageFoot",
++			"value": "dshm_Qw-epq_value"
+ 		};
+ 		const tagId$1 = "dsh-pdf-mineru/Storage.module.css";
+ 		if (typeof document !== "undefined") {
+@@ -2209,13 +2251,13 @@
+ 			};
+ 		}
+ 		//#endregion
+-		//#region \0dsh-css:/Users/zyf/Project/DSH_WorkSpace/dsh-pdf-mineru/src/client/SettingsPage.module.css.mjs
+-		const css = ".dshm_IVFBSa_page{flex-direction:column;gap:20px;width:100%;min-width:0;display:flex}.dshm_IVFBSa_panel{flex-direction:column;gap:24px;display:flex}.dshm_IVFBSa_panel[hidden]{display:none}.dshm_IVFBSa_notice{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;display:flex}.dshm_IVFBSa_noticeText{color:var(--dsw-alias-label-secondary);margin:0;font-size:13px;line-height:20px}";
++		//#region \0dsh-css:/home/runner/work/dsh-pdf-mineru/dsh-pdf-mineru/src/client/SettingsPage.module.css.mjs
++		const css = ".dshm_Hp5wKG_page{flex-direction:column;gap:20px;width:100%;min-width:0;display:flex}.dshm_Hp5wKG_panel{flex-direction:column;gap:24px;display:flex}.dshm_Hp5wKG_panel[hidden]{display:none}.dshm_Hp5wKG_notice{flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;display:flex}.dshm_Hp5wKG_noticeText{color:var(--dsw-alias-label-secondary);margin:0;font-size:13px;line-height:20px}";
+ 		const classMap = {
+-			"notice": "dshm_IVFBSa_notice",
+-			"noticeText": "dshm_IVFBSa_noticeText",
+-			"page": "dshm_IVFBSa_page",
+-			"panel": "dshm_IVFBSa_panel"
++			"notice": "dshm_Hp5wKG_notice",
++			"noticeText": "dshm_Hp5wKG_noticeText",
++			"page": "dshm_Hp5wKG_page",
++			"panel": "dshm_Hp5wKG_panel"
+ 		};
+ 		const tagId = "dsh-pdf-mineru/SettingsPage.module.css";
+ 		if (typeof document !== "undefined") {
+@@ -2622,12 +2664,33 @@
+ 				rpc: connection.rpc,
+ 				credentials: ctx.remote.credentials
+ 			});
+-			ctx.slots.inject("plugins.bundle.config", () => ctx.slots.register({
+-				name: "plugins.bundle.config",
+-				key: "dsh-pdf-mineru",
++			// DSH 0.1.x has no "plugins.bundle.config" keyed slot: its Plugins section lists
++			// feature tabs. Register the page as a tab and feed its props from this
++			// plugin's own services, because tab entries are rendered without the keyed
++			// prop face the page was written against.
++			const shellProps = Object.freeze({ rpc: connection.rpc, credentials: ctx.remote.credentials, t: ctx.locale.bind(NS) });
++			class MineruSettingsBoundary extends react.Component {
++				constructor(props) {
++					super(props);
++					this.state = { failed: false };
++				}
++				static getDerivedStateFromError() {
++					return { failed: true };
++				}
++				render() {
++					return this.state.failed ? react.createElement("p", { role: "alert" }, "MinerU settings failed to render; see the browser console.") : this.props.children;
++				}
++			}
++			ctx.slots.inject("settings.plugins.tab", () => ctx.slots.register({
++				name: "settings.plugins.tab",
++				id: "dsh-pdf-mineru",
++				order: 45,
++				label: () => "MinerU",
+ 				locale: NS,
+ 				inject: injected
+-			}, SettingsPage));
++			}, function MineruSettingsShell() {
++				return react.createElement(MineruSettingsBoundary, null, react.createElement(SettingsPage, shellProps));
++			}));
+ 		}
+ 		//#endregion
+ 		exports.apply = apply;
