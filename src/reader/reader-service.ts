@@ -71,9 +71,18 @@ export class ReaderService {
   }
 
   /** Ensure publication and return a bounded synopsis, never a body projection. */
-  async summarize(sourcePath: string, config: MinerUConfig, signal: AbortSignal, onProgress?: ParseProgressListener): Promise<ParseSummaryView> {
+  async summarize(
+    sourcePath: string,
+    config: MinerUConfig,
+    signal: AbortSignal,
+    onProgress?: ParseProgressListener,
+    parsePages?: string,
+  ): Promise<ParseSummaryView> {
     return await this.options.accessGate.runShared(async () => {
-      const published = await this.options.parser.ensurePublished(sourcePath, config, signal, { waitTimeoutMs: null, onProgress })
+      const published = await this.options.parser.ensurePublished(sourcePath, config, signal, {
+        waitTimeoutMs: null, onProgress,
+        ...(parsePages === undefined ? {} : { parsePages }),
+      })
       const document = openPublishedDocument(published, this.options.results)
       reportProgress(onProgress, 'summarizing')
       signal.throwIfAborted()

@@ -9,6 +9,8 @@ import { executeWithRetry, isRetryableHttpStatus, parseRetryAfter, readBoundedRe
 
 const EXTENSION_MIME_TYPES: Readonly<Record<string, string>> = {
   '.pdf': 'application/pdf',
+  '.html': 'text/html',
+  '.htm': 'text/html',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',

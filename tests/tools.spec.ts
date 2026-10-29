@@ -83,7 +83,12 @@ describe('read_pdf argument boundary', () => {
   })
 
   it('rejects unknown async parameters with the same boundary', () => {
-    expect(() => parseAsyncArguments({ file_path: 'paper.pdf', pages: 1 })).toThrow(invalidRequest)
+    // `pages` is a supported parse window now; an unrelated field still fails.
+    expect(() => parseAsyncArguments({ file_path: 'paper.pdf', caption: 'x' })).toThrow(invalidRequest)
+  })
+
+  it('accepts a parse window on the async boundary', () => {
+    expect(parseAsyncArguments({ file_path: 'paper.pdf' })).toEqual({ file_path: 'paper.pdf' })
   })
 
   it('never reaches the reader with invalid arguments', async () => {
@@ -278,7 +283,8 @@ describe('async_parse_pdf submission', () => {
     const id = await h.submit({ file_path: 'paper.pdf' })
     maxInlineChars = 5000
     await h.ctx.jobs.wait(id, 1000, h.session.id)
-    expect(summarize).toHaveBeenCalledWith('/workspace/paper.pdf', expect.objectContaining({ output: expect.objectContaining({ maxInlineChars: 1000 }) }), expect.any(AbortSignal), expect.any(Function))
+    // The fifth argument is the optional parse window; absent here, so `undefined`.
+    expect(summarize).toHaveBeenCalledWith('/workspace/paper.pdf', expect.objectContaining({ output: expect.objectContaining({ maxInlineChars: 1000 }) }), expect.any(AbortSignal), expect.any(Function), undefined)
     expect(defaultMinerUConfig().output.maxInlineChars).not.toBe(1000)
   })
 })

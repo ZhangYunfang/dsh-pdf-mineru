@@ -74,7 +74,10 @@ export async function apply(ctx: Context, entryConfig: unknown = {}): Promise<()
       attachments = attachmentCtx.attachments
       return () => { attachments = undefined }
     })
-    toolDisposer = registerTools(ctx, { reader, config: runtimeConfig, attachments: () => attachments })
+    toolDisposer = registerTools(ctx, {
+      reader, config: runtimeConfig, attachments: () => attachments,
+      probe: async (config, signal) => await parser.probe(config, signal),
+    })
 
     // HTTP RPC registration accesses the caller's webServer, so declare it explicitly.
     // Keep this optional scope separate: headless hosts still get both tools.

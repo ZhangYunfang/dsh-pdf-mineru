@@ -113,6 +113,37 @@ export const resultViewSchema = {
   additionalProperties: false,
 } satisfies ObjectValueSchemaSpec
 
+export const mineruHealthOutputSchema = {
+  type: 'object',
+  properties: {
+    available: { type: 'boolean', required: true },
+    provider: { type: 'string', required: true },
+    authentication: { type: 'string', enum: ['valid', 'invalid', 'not-configured', 'unknown'], required: true },
+    protocol_version: { type: 'string', required: true },
+    server_version: { type: 'string' },
+    available_tiers: { type: 'array', items: { type: 'string' } },
+    output_formats: { type: 'array', items: { type: 'string' } },
+    source_types: { type: 'array', items: { type: 'string' } },
+    queue: {
+      type: 'object',
+      properties: {
+        queued: { type: 'integer' }, processing: { type: 'integer' },
+        completed: { type: 'integer' }, failed: { type: 'integer' }, max_concurrent: { type: 'integer' },
+      },
+      additionalProperties: false,
+    },
+    diagnostics: { type: 'string' },
+  },
+  additionalProperties: false,
+} satisfies ObjectValueSchemaSpec
+
+export const mineruHealthParameters: ParameterSchemaSpec = {
+  timeout_ms: {
+    type: 'integer',
+    description: 'Optional probe deadline in milliseconds; defaults to the configured request timeout.',
+  },
+}
+
 export const asyncParseOutputSchema = {
   type: 'object',
   properties: { job_id: { type: 'string', required: true }, state: { type: 'string', enum: ['running'], required: true } },
@@ -120,8 +151,12 @@ export const asyncParseOutputSchema = {
 } satisfies ObjectValueSchemaSpec
 
 const documentSourceParameters = {
-  file_path: { type: 'string', description: 'Path of the local PDF document. Provide exactly one of file_path or attachment_id.' },
+  file_path: { type: 'string', description: 'Path of the local document (PDF, image, DOCX/PPTX/XLSX, or HTML). Provide exactly one of file_path or attachment_id.' },
   attachment_id: { type: 'string', description: 'File attachment on the current session surface: full SHA-256 ID or unique 8–64 hex-character digest prefix, with optional sha256: prefix. Uses the DSH host file path; not a URL or filesystem path. Mutually exclusive with file_path.' },
+  pages: {
+    type: 'string',
+    description: 'Parse-time page window in Provider syntax, e.g. "1-5,8". MinerU 4 (self-hosted V1) also accepts "r1" (last page) and "all". The window is part of the cache key: a different window is a different parse. Leave empty to parse the whole document.',
+  },
 } satisfies ParameterSchemaSpec
 
 export const asyncParseParameters: ParameterSchemaSpec = documentSourceParameters

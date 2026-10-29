@@ -50,6 +50,24 @@ export function parseDocumentSource(args: Readonly<Record<string, unknown>>): Do
   return { attachment_id: args.attachment_id.trim().toLowerCase() }
 }
 
+/**
+ * Validate a parse-time page window without rewriting its dialect: MinerU 4
+ * accepts `1-5,8`, `r1` (last page) and `all`, while the older hosts accept
+ * plain ranges. Only the shape is checked here; a Provider that cannot express
+ * the window rejects it through its own capability check.
+ */
+export function normalizeParsePageRange(value: unknown): string | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string') throw invalidRequest('pages must be a string such as "1-5,8"')
+  const text = value.trim()
+  if (text === '') return undefined
+  if (/^all$/i.test(text)) return 'all'
+  if (!/^(?:\d+(?:-\d+)?|[rR]\d+(?:-[rR]?\d+)?)(?:\s*,\s*(?:\d+(?:-\d+)?|[rR]\d+(?:-[rR]?\d+)?))*$/.test(text)) {
+    throw invalidRequest('pages must be a page window such as "3", "1-5,8", "r1" (last page) or "all"')
+  }
+  return text.replace(/\s+/g, '')
+}
+
 function* fileReferences(blocks: readonly ContentBlock[]): Generator<FileAttachmentRef> {
   for (const block of blocks) {
     if (block.type === 'file') yield block.attachment

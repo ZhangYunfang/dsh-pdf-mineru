@@ -7,6 +7,7 @@ import { createUserMessage, ToolCallId, type LlmRuntime } from '@deepseek-ai/dsh
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import type { ToolDefinition, ToolExecutionToken, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { onTestFinished, vi } from 'vitest'
+import type { ProbeView } from '../../src/contracts/probe.js'
 import type { MinerUConfig, OutputConfig } from '../../src/config/model.js'
 import { defaultMinerUConfig } from '../../src/config/parse.js'
 import type { ContentQuery } from '../../src/domain/selection.js'
@@ -116,7 +117,13 @@ export async function toolHarness(options: ToolHarnessOptions = {}) {
     viewPage: vi.fn<ToolReader['viewPage']>(supplied?.viewPage?.bind(supplied) ?? (async () => resultView({ view: 'page', source: 'local', content_status: 'not_requested' }))),
     summarize: vi.fn<ToolReader['summarize']>(supplied?.summarize?.bind(supplied) ?? (async (): Promise<ParseSummaryView> => summaryView())),
   }
-  const dispose = registerTools(ctx, { reader, config: options.config ?? defaultMinerUConfig, attachments: () => ctx.get('attachments') })
+  const probe = async (): Promise<ProbeView> => ({
+    available: true, provider: 'self-hosted-v1', authentication: 'not-configured', protocol_version: '1',
+  })
+  const dispose = registerTools(ctx, {
+    reader, config: options.config ?? defaultMinerUConfig,
+    attachments: () => ctx.get('attachments'), probe,
+  })
   onTestFinished(dispose)
 
   const exec = (overrides: Partial<ToolRunContext> = {}): ToolRunContext => ({
@@ -124,7 +131,7 @@ export async function toolHarness(options: ToolHarnessOptions = {}) {
     signal: new AbortController().signal, agent, token: executionToken(),
     deferContext: () => undefined, concludeTurn: () => undefined, ...overrides,
   })
-  const tool = (name: 'read_pdf' | 'async_parse_pdf'): ToolDefinition => definitions.get(name)!
+  const tool = (name: 'read_pdf' | 'async_parse_pdf' | 'mineru_health'): ToolDefinition => definitions.get(name)!
   return {
     ctx, owner, session, agent, definitions, tool, exec, reader, ensure, saveImage, fileHostPath, resolveModelInfo, dispose,
     setDirectory: (directory: string) => { cwd = directory },

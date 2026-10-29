@@ -1,10 +1,12 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
+import type { ProbeView } from '../contracts/probe.js'
 import type { JobOutcome } from '@deepseek-ai/dsh-jobs'
 import type { MinerUConfig } from '../config/model.js'
 import { MinerUError, failure } from '../domain/errors.js'
 import type { ReaderService } from '../reader/reader-service.js'
 import { asyncParsePdfTool } from './async-parse-pdf.js'
+import { mineruHealthTool } from './mineru-health.js'
 import { readPdfTool } from './read-pdf.js'
 
 export interface ToolDependencies {
@@ -13,6 +15,8 @@ export interface ToolDependencies {
   readonly config: () => MinerUConfig
   /** Optional sibling service, absent on hosts without attachments. */
   readonly attachments: () => AttachmentStore | undefined
+  /** Probe the active Provider without creating parse state. */
+  readonly probe: (config: MinerUConfig, signal: AbortSignal) => Promise<ProbeView>
 }
 
 export interface BackgroundInvocation {
@@ -26,6 +30,7 @@ export function registerTools(ctx: Context, deps: ToolDependencies): () => Promi
   const disposers = [
     ctx.tools.register(asyncParsePdfTool(ctx, deps, invocations)) as () => void,
     ctx.tools.register(readPdfTool(ctx, deps)) as () => void,
+    ctx.tools.register(mineruHealthTool(deps)) as () => void,
   ]
   return async () => {
     for (const dispose of disposers) dispose()

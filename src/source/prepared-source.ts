@@ -14,6 +14,7 @@ import {
 const SUPPORTED_EXTENSIONS = new Set([
   '.pdf', '.png', '.jpg', '.jpeg', '.jp2', '.webp', '.gif', '.bmp', '.tif', '.tiff',
   '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx',
+  '.html', '.htm',
 ])
 
 /** Stat, bound and stream-hash one absolute local source; the path stays ephemeral. */
@@ -65,13 +66,21 @@ export async function assertSourcesUnchanged(sources: readonly PreparedSourceFil
   }
 }
 
-/** Canonical single-file request; semantics come only from the effective parse defaults. */
-export function canonicalParseRequest(defaults: ParseDefaults, source: PreparedSourceFile): CanonicalParseRequest {
+/**
+ * Canonical single-file request; semantics come only from the effective parse
+ * defaults plus an optional page window. `pages` keeps the Provider-native
+ * selection syntax because each upstream dialect spells it differently; it is
+ * part of the cache semantics, so two windows never share a cache entry.
+ */
+export function canonicalParseRequest(defaults: ParseDefaults, source: PreparedSourceFile, pages?: string): CanonicalParseRequest {
   const { model, parseMethod, language, formula, table } = defaults
   return {
     schemaVersion: CANONICAL_PARSE_REQUEST_SCHEMA_VERSION,
     files: [{ fileId: source.fileId, name: source.name, bytes: source.bytes, sha256: source.sha256 }],
-    semantics: { model, ocr: parseMethod === 'ocr', parseMethod, language, formula, table },
+    semantics: {
+      model, ocr: parseMethod === 'ocr', parseMethod, language, formula, table,
+      ...(pages === undefined || pages === '' ? {} : { pages }),
+    },
     requiredArtifacts: ARTIFACT_KINDS,
   }
 }

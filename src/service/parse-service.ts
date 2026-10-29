@@ -46,6 +46,8 @@ export interface PublishedResult {
 export interface EnsurePublishedOptions {
   /** Continuations read the cache only and never start a Provider. */
   readonly cacheOnly?: boolean
+  /** Provider-native page selection for this parse, e.g. "1-5,8" or "3" (V1 also accepts "r1", "all"). */
+  readonly parsePages?: string
   /** Synchronous wait bound: omitted uses polling.pollTimeoutMs, null waits for the shared outcome. */
   readonly waitTimeoutMs?: number | null
   readonly onProgress?: ParseProgressListener
@@ -148,7 +150,7 @@ export class ParseService {
   async ensurePublished(sourcePath: string, config: MinerUConfig, signal: AbortSignal, options: EnsurePublishedOptions = {}): Promise<PublishedResult> {
     signal.throwIfAborted()
     reportProgress(options.onProgress, 'preparing')
-    const pending = await this.prepare(sourcePath, config, signal, options.cacheOnly === true)
+    const pending = await this.prepare(sourcePath, config, signal, options.cacheOnly === true, options.parsePages)
     if (pending.kind === 'published') {
       reportProgress(options.onProgress, 'reading-result')
       return pending.result
@@ -178,10 +180,10 @@ export class ParseService {
     return { cacheKey: pending.cacheKey, manifest, source: pending.source, sourceFile: pending.prepared.request.files[0]! }
   }
 
-  private async prepare(sourcePath: string, config: MinerUConfig, signal: AbortSignal, cacheOnly: boolean): Promise<Pending> {
+  private async prepare(sourcePath: string, config: MinerUConfig, signal: AbortSignal, cacheOnly: boolean, parsePages?: string): Promise<Pending> {
     const resolved = this.active(config)
     const source = await prepareSource(sourcePath, Math.min(config.limits.maxFileBytes, resolved.provider.capabilities.maxFileBytes ?? config.limits.maxFileBytes), signal)
-    const prepared: PreparedParseRequest = { request: canonicalParseRequest(effectiveParseDefaults(config.defaults, resolved.config), source), sources: [source] }
+    const prepared: PreparedParseRequest = { request: canonicalParseRequest(effectiveParseDefaults(config.defaults, resolved.config), source, parsePages), sources: [source] }
     const file = prepared.request.files[0]!
     validateProviderCapabilities(prepared.request, resolved.provider.capabilities)
     const compatibility = resolved.provider.compatibilityKey(prepared.request)

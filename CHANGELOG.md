@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## Unreleased
+
+### Added
+
+- `mineru_health` tool: probes the active Provider and reports availability, protocol and server version, authentication state, available tiers, advertised output formats and source types, and queue depth. It never uploads a document and never starts a parse job, so a deployment fault can be diagnosed without parsing.
+- Parse-time page window: `async_parse_pdf` accepts `pages` (`"3"`, `"1-5,8"`; self-hosted MinerU 4 also accepts `r1` for the last page and `all`). The window travels into the canonical request, so it is part of the cache key — a different window is a different parse, never a cache hit against a whole-document result.
+- HTML input: `.html` and `.htm` are accepted sources and are labelled `text/html` for MinerU 4 V1 uploads.
+- A reproducible DSH `0.1.2-alpha.2` compatibility build (`pnpm run build:01x`) so the package can be validated on the host it is deployed to instead of only on its declared floor.
+
 ## 0.2.2
 
 ### Fixed

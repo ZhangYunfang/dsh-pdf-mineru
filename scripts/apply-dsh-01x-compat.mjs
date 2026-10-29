@@ -22,6 +22,9 @@ import { dirname, join } from 'node:path'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const checkOnly = process.argv.includes('--check')
 
+/** A rule whose anchor disappeared: the bundled code drifted from what this layer expects. */
+class Drift extends Error {}
+
 /** @type {{id: string, apply: (text: string) => string | undefined}[]} */
 const HOST_RULES = [
   {
@@ -29,7 +32,7 @@ const HOST_RULES = [
     apply(text) {
       if (text.includes('cosmokit.volatile.write')) return undefined
       const anchor = 'import { isVolatile } from "@deepseek-ai/cosmokit";'
-      if (!text.includes(anchor)) return 'anchor missing: cosmokit import'
+      if (!text.includes(anchor)) throw new Drift('cosmokit import')
       return text.replace(anchor, [
         'const __cosmokitWrite = Symbol.for("cosmokit.volatile.write");',
         'function isVolatile(value) { return typeof value === "object" && value !== null && __cosmokitWrite in value; }',
@@ -50,7 +53,7 @@ const HOST_RULES = [
       const anchor = 'if (peer.principal.kind !== "owner") return {'
       const patched = 'if (peer !== void 0 && peer.principal.kind !== "owner") return {'
       if (text.includes(patched)) return undefined
-      if (!text.includes(anchor)) return 'anchor missing: loopback peer guard'
+      if (!text.includes(anchor)) throw new Drift('loopback peer guard')
       return text.replace(anchor, patched)
     },
   },
@@ -60,7 +63,7 @@ const HOST_RULES = [
       const anchor = 'return resolve(await ctx.workingDirectory.ensure(agent, exec.signal), source.file_path);'
       const patched = 'return resolve((agent && agent.session && agent.session.header && typeof agent.session.header.cwd === "string" ? agent.session.header.cwd : process.cwd()), source.file_path);'
       if (text.includes(patched)) return undefined
-      if (!text.includes(anchor)) return 'anchor missing: workingDirectory resolve'
+      if (!text.includes(anchor)) throw new Drift('workingDirectory resolve')
       return text.replace(anchor, patched)
     },
   },
@@ -69,7 +72,7 @@ const HOST_RULES = [
     apply(text) {
       if (text.includes('owner: agent,')) return undefined
       const anchor = 'owner: agent.session.id,'
-      if (!text.includes(anchor)) return 'anchor missing: jobs owner'
+      if (!text.includes(anchor)) throw new Drift('jobs owner')
       return text.replace(anchor, 'owner: agent,')
     },
   },
@@ -77,9 +80,10 @@ const HOST_RULES = [
     id: 'jobs-progress-guard',
     apply(text) {
       if (text.includes('typeof job.updateProgress === "function"')) return undefined
-      const anchor = 'deps.reader.summarize(sourcePath, config, controller.signal, (phase) => job.updateProgress(phase))'
-      const patched = 'deps.reader.summarize(sourcePath, config, controller.signal, (phase) => { if (job && typeof job.updateProgress === "function") job.updateProgress(phase); })'
-      if (!text.includes(anchor)) return 'anchor missing: job.updateProgress'
+      // Target the progress callback alone: the surrounding call keeps gaining arguments.
+      const anchor = '(phase) => job.updateProgress(phase)'
+      const patched = '(phase) => { if (job && typeof job.updateProgress === "function") job.updateProgress(phase); }'
+      if (!text.includes(anchor)) throw new Drift('job.updateProgress callback')
       return text.replace(anchor, patched)
     },
   },
@@ -88,7 +92,7 @@ const HOST_RULES = [
     apply(text) {
       if (text.includes('function readRuntimeConfig(ctx, entryConfig) {\n\t// DSH 0.2.x')) return undefined
       const anchor = 'function readRuntimeConfig(ctx, entryConfig) {'
-      if (!text.includes(anchor)) return 'anchor missing: readRuntimeConfig'
+      if (!text.includes(anchor)) throw new Drift('readRuntimeConfig')
       const injected = [
         anchor,
         '\t// DSH 0.2.x updates the fiber config in place; 0.1.x keeps it immutable, so a',
@@ -115,7 +119,7 @@ const HOST_RULES = [
         'const namespace = entry.options.id;',
         'const original = entry.options.config;',
       ].join('\n\t\t\t')
-      if (!text.includes(anchor)) return 'anchor missing: settings save namespace'
+      if (!text.includes(anchor)) throw new Drift('settings save namespace')
       const patched = [
         '// 0.1.x fibers expose no Loader entry; persist through the settings namespace registered in apply().',
         'const namespace = entry === void 0 ? "dsh-pdf-mineru" : entry.options.id;',
@@ -129,7 +133,7 @@ const HOST_RULES = [
     apply(text) {
       if (text.includes('typeof settings.register === "function"')) return undefined
       const anchor = 'ctx.effect(() => settings.configure({ auto: false }, ctx.fiber), "dsh-pdf-mineru settings presentation");'
-      if (!text.includes(anchor)) return 'anchor missing: settings.configure'
+      if (!text.includes(anchor)) throw new Drift('settings.configure')
       const patched = [
         'if (typeof settings.configure === "function") ctx.effect(() => settings.configure({ auto: false }, ctx.fiber), "dsh-pdf-mineru settings presentation");',
         '\telse if (typeof settings.register === "function") {',
@@ -160,15 +164,20 @@ let failures = 0
 const hostPath = join(root, 'lib/index.js')
 let host = readFileSync(hostPath, 'utf8')
 for (const rule of HOST_RULES) {
-  const next = rule.apply(host)
+  let next
+  try {
+    next = rule.apply(host)
+  } catch (error) {
+    if (!(error instanceof Drift)) throw error
+    console.error(`DRIFT    ${rule.id}: anchor missing (${error.message})`)
+    failures += 1
+    continue
+  }
   if (typeof next === 'string') {
     host = next
     console.log(`applied  ${rule.id}`)
-  } else if (next === undefined) {
-    console.log(`ok       ${rule.id} (already applied or not applicable)`)
   } else {
-    console.error(`DRIFT    ${rule.id}: ${next}`)
-    failures += 1
+    console.log(`ok       ${rule.id} (already applied or not applicable)`)
   }
 }
 if (failures > 0) {
