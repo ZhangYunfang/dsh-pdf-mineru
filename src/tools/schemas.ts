@@ -154,6 +154,11 @@ export const asyncParseOutputSchema = {
 const documentSourceParameters = {
   file_path: { type: 'string', description: 'Path of the local document (PDF, image, DOCX/PPTX/XLSX, or HTML). Provide exactly one of file_path or attachment_id.' },
   attachment_id: { type: 'string', description: 'File attachment on the current session surface: full SHA-256 ID or unique 8–64 hex-character digest prefix, with optional sha256: prefix. Uses the DSH host file path; not a URL or filesystem path. Mutually exclusive with file_path.' },
+  output_formats: {
+    type: 'array',
+    items: { type: 'string', enum: ['html', 'latex', 'docx'] },
+    description: 'Extra renderings to export beside the parsed result (self-hosted MinerU 4 supports html/latex/docx when the deployment advertises them). The archive is always produced, so zip is implicit. Requesting a rendering makes it a distinct cache entry.',
+  },
   pages: {
     type: 'string',
     description: 'Parse-time page window in Provider syntax, e.g. "1-5,8". MinerU 4 (self-hosted V1) also accepts "r1" (last page) and "all". The window is part of the cache key: a different window is a different parse. Leave empty to parse the whole document.',

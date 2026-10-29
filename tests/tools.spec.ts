@@ -283,8 +283,8 @@ describe('async_parse_pdf submission', () => {
     const id = await h.submit({ file_path: 'paper.pdf' })
     maxInlineChars = 5000
     await h.ctx.jobs.wait(id, 1000, h.session.id)
-    // The fifth argument is the optional parse window; absent here, so `undefined`.
-    expect(summarize).toHaveBeenCalledWith('/workspace/paper.pdf', expect.objectContaining({ output: expect.objectContaining({ maxInlineChars: 1000 }) }), expect.any(AbortSignal), expect.any(Function), undefined)
+    // Trailing optional arguments are the parse window and extra renderings; absent here.
+    expect(summarize).toHaveBeenCalledWith('/workspace/paper.pdf', expect.objectContaining({ output: expect.objectContaining({ maxInlineChars: 1000 }) }), expect.any(AbortSignal), expect.any(Function), undefined, undefined)
     expect(defaultMinerUConfig().output.maxInlineChars).not.toBe(1000)
   })
 })

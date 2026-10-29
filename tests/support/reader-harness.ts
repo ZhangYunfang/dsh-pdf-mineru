@@ -66,6 +66,9 @@ const DEFAULT_ARTIFACTS: Readonly<Record<ArtifactKind, { readonly content: strin
   'model-output': { content: '{}', mediaType: 'application/json' },
   'content-list': { content: '[]', mediaType: 'application/json' },
   images: { content: PNG_1X1, mediaType: 'image/png' },
+  html: { content: '<html><body></body></html>', mediaType: 'text/html' },
+  latex: { content: '\\documentclass{article}', mediaType: 'application/x-latex' },
+  docx: { content: new Uint8Array([0x50, 0x4b, 0x03, 0x04]), mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
 }
 
 /**

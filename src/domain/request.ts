@@ -4,6 +4,7 @@ export const CANONICAL_PARSE_REQUEST_SCHEMA_VERSION = 1 as const
 export const CACHE_KEY_SPEC_VERSION = 1 as const
 export const RESULT_SCHEMA_VERSION = 1 as const
 
+/** Artifacts every parse produces and every reader depends on. */
 export const ARTIFACT_KINDS = [
   'markdown',
   'layout',
@@ -12,7 +13,16 @@ export const ARTIFACT_KINDS = [
   'images',
 ] as const
 
-export type ArtifactKind = typeof ARTIFACT_KINDS[number]
+/**
+ * Artifacts produced only on request. A Provider may export one document in
+ * several renderings (MinerU 4 exports HTML, LaTeX and DOCX beside the archive);
+ * requesting an extra rendering changes the cache key, so an export never
+ * shadows a plain parse of the same document.
+ */
+export const OPTIONAL_ARTIFACT_KINDS = ['html', 'latex', 'docx'] as const
+
+export type ArtifactKind = typeof ARTIFACT_KINDS[number] | typeof OPTIONAL_ARTIFACT_KINDS[number]
+export const ALL_ARTIFACT_KINDS = [...ARTIFACT_KINDS, ...OPTIONAL_ARTIFACT_KINDS] as const
 export type MinerUModel = 'pipeline' | 'vlm'
 export type ParseMethod = 'auto' | 'txt' | 'ocr'
 
@@ -68,5 +78,5 @@ export interface ParseDefaults {
 
 export function normalizeArtifactKinds(kinds: readonly ArtifactKind[]): readonly ArtifactKind[] {
   const requested = new Set<ArtifactKind>(['markdown', ...kinds])
-  return ARTIFACT_KINDS.filter(kind => requested.has(kind))
+  return ALL_ARTIFACT_KINDS.filter(kind => requested.has(kind))
 }

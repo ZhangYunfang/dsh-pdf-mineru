@@ -4,6 +4,7 @@ import { MinerUError, failure } from '../domain/errors.js'
 import { asResultId, createFileId } from '../domain/ids.js'
 import { cursorSelection, type ContentQuery, type ContentSelection, type ReadCursorPayload, type ReadQuery } from '../domain/selection.js'
 import { reportProgress, type ParseProgressListener, type ParseService } from '../service/parse-service.js'
+import type { ArtifactKind } from '../domain/request.js'
 import type { StorageAccessGate } from '../storage/access-gate.js'
 import type { ResultRepository } from '../storage/result-repository.js'
 import { collectBlockDiagnostics, DOCUMENT_INDEX_VERSION, normalizeDocumentBlocks } from './document-index.js'
@@ -77,11 +78,13 @@ export class ReaderService {
     signal: AbortSignal,
     onProgress?: ParseProgressListener,
     parsePages?: string,
+    outputFormats?: readonly ArtifactKind[],
   ): Promise<ParseSummaryView> {
     return await this.options.accessGate.runShared(async () => {
       const published = await this.options.parser.ensurePublished(sourcePath, config, signal, {
         waitTimeoutMs: null, onProgress,
         ...(parsePages === undefined ? {} : { parsePages }),
+        ...(outputFormats === undefined || outputFormats.length === 0 ? {} : { outputFormats }),
       })
       const document = openPublishedDocument(published, this.options.results)
       reportProgress(onProgress, 'summarizing')

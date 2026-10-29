@@ -5,6 +5,8 @@ import { createFileId } from '../domain/ids.js'
 import { MinerUError, failure } from '../domain/errors.js'
 import {
   ARTIFACT_KINDS,
+  type ArtifactKind,
+  normalizeArtifactKinds,
   CANONICAL_PARSE_REQUEST_SCHEMA_VERSION,
   type CanonicalParseRequest,
   type ParseDefaults,
@@ -72,7 +74,12 @@ export async function assertSourcesUnchanged(sources: readonly PreparedSourceFil
  * selection syntax because each upstream dialect spells it differently; it is
  * part of the cache semantics, so two windows never share a cache entry.
  */
-export function canonicalParseRequest(defaults: ParseDefaults, source: PreparedSourceFile, pages?: string): CanonicalParseRequest {
+export function canonicalParseRequest(
+  defaults: ParseDefaults,
+  source: PreparedSourceFile,
+  pages?: string,
+  extraArtifacts: readonly ArtifactKind[] = [],
+): CanonicalParseRequest {
   const { model, parseMethod, language, formula, table } = defaults
   return {
     schemaVersion: CANONICAL_PARSE_REQUEST_SCHEMA_VERSION,
@@ -81,6 +88,7 @@ export function canonicalParseRequest(defaults: ParseDefaults, source: PreparedS
       model, ocr: parseMethod === 'ocr', parseMethod, language, formula, table,
       ...(pages === undefined || pages === '' ? {} : { pages }),
     },
-    requiredArtifacts: ARTIFACT_KINDS,
+    // Core artifacts are always required (the reader depends on them); extras are opt-in.
+    requiredArtifacts: normalizeArtifactKinds([...ARTIFACT_KINDS, ...extraArtifacts]),
   }
 }

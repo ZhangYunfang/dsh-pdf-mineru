@@ -21,6 +21,8 @@
  */
 
 import { createHash } from 'node:crypto'
+import { createReadStream } from 'node:fs'
+import { rm } from 'node:fs/promises'
 import { SelfHostedV1Uploader } from './upload.js'
 import { canonicalizingSink } from './canonical-artifacts.js'
 import { Readable } from 'node:stream'
@@ -28,7 +30,8 @@ import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web'
 import type { MinerUFileState, MinerUJobState } from '../../domain/job.js'
 import type { MinerUFileId } from '../../domain/ids.js'
 import { SELF_HOSTED_TIERS, type SelfHostedV1Config } from '../../config/model.js'
-import type { CanonicalParseRequest, PreparedSourceFile } from '../../domain/request.js'
+import type { ArtifactRef } from '../../domain/result.js'
+import { OPTIONAL_ARTIFACT_KINDS, type ArtifactKind, type CanonicalParseRequest, type PreparedSourceFile } from '../../domain/request.js'
 import {
   MinerUError,
   type MinerUFailure,
@@ -71,6 +74,23 @@ import {
 
 /** The only output format the plugin consumes; it carries every canonical artifact. */
 export const SELF_HOSTED_V1_ARCHIVE_FORMAT = 'zip'
+
+/** Media types for the optional renderings MinerU 4 can export beside the archive. */
+const RENDERING_MEDIA_TYPES: Readonly<Record<(typeof OPTIONAL_ARTIFACT_KINDS)[number], string>> = {
+  html: 'text/html',
+  latex: 'application/x-latex',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
+
+/** Attach renderings downloaded outside the archive to the file they belong to. */
+function mergeArtifacts(
+  collected: readonly ProviderCollectedFile[],
+  fileId: MinerUFileId,
+  extra: readonly ArtifactRef[],
+): readonly ProviderCollectedFile[] {
+  if (extra.length === 0) return collected
+  return collected.map(file => file.fileId === fileId ? { ...file, artifacts: [...file.artifacts, ...extra] } : file)
+}
 
 export interface SelfHostedV1HealthResponse {
   readonly status?: string
@@ -244,7 +264,8 @@ export class SelfHostedV1Provider implements MinerUProvider {
   readonly capabilities: ProviderCapabilities = {
     models: ['pipeline'], parseMethods: ['auto', 'txt', 'ocr'], supportsOcr: true,
     supportsLanguage: false, supportsFormula: false, supportsTable: false,
-    supportsPageRanges: true, supportedArtifacts: ['markdown', 'layout', 'model-output', 'content-list', 'images'],
+    supportsPageRanges: true,
+    supportedArtifacts: ['markdown', 'layout', 'model-output', 'content-list', 'images', ...OPTIONAL_ARTIFACT_KINDS],
     maxFilesPerSubmission: 10,
   }
   private readonly options: SelfHostedV1AdapterOptions
@@ -355,6 +376,7 @@ export class SelfHostedV1Provider implements MinerUProvider {
 
     const pageRange = request.semantics.pages?.trim()
     const tier = this.config.tier
+    const extras = await this.requestedRenderings(request, context)
     const payload = {
       files: upstreamFileIds.map(fileId => ({
         source: { type: 'file_id', file_id: fileId },
@@ -362,7 +384,7 @@ export class SelfHostedV1Provider implements MinerUProvider {
       })),
       ...(tier === undefined ? {} : { tier }),
       ocr_mode: request.semantics.parseMethod,
-      output_formats: [SELF_HOSTED_V1_ARCHIVE_FORMAT],
+      output_formats: [SELF_HOSTED_V1_ARCHIVE_FORMAT, ...extras],
     }
 
     const job = await this.requestJson<SelfHostedV1JobResponse>(
@@ -473,7 +495,8 @@ export class SelfHostedV1Provider implements MinerUProvider {
         limits: context.limits,
         signal: context.signal,
       })
-      collectedFiles.push(...extracted)
+      const extraArtifacts = await this.collectRenderings(request, jobFile, file.fileId, sink, context, index)
+      collectedFiles.push(...mergeArtifacts(extracted, file.fileId, extraArtifacts))
     }
 
     return { files: collectedFiles }
@@ -558,6 +581,61 @@ export class SelfHostedV1Provider implements MinerUProvider {
   }
 
   /** Downloads the result archive of a completed file into a bounded staging temporary file. */
+  /**
+   * Optionally requested renderings this request asks for, validated against the
+   * deployment's advertised output formats: silently dropping a requested export
+   * would publish a result that does not match its request.
+   */
+  private async requestedRenderings(
+    request: CanonicalParseRequest,
+    context: ProviderCallContext,
+  ): Promise<readonly ArtifactKind[]> {
+    const extras = OPTIONAL_ARTIFACT_KINDS.filter(kind => request.requiredArtifacts.includes(kind))
+    if (extras.length === 0) return []
+    const deployment = await this.discoverDeployment(context, await this.health(context))
+    const missing = extras.filter(kind => !deployment.outputFormats.includes(kind))
+    if (missing.length > 0) {
+      throw new MinerUError(failure(
+        'UNSUPPORTED_OPTION',
+        `This V1 deployment does not export ${missing.join(', ')} (advertised: ${deployment.outputFormats.join(', ') || 'none'})`,
+        false,
+        { provider: this.id },
+      ))
+    }
+    return extras
+  }
+
+  /** Download each requested rendering and store it under its canonical artifact kind. */
+  private async collectRenderings(
+    request: CanonicalParseRequest,
+    jobFile: SelfHostedV1JobFile,
+    fileId: MinerUFileId,
+    sink: ArtifactSink,
+    context: ProviderCallContext,
+    index: number,
+  ): Promise<ArtifactRef[]> {
+    const extras = OPTIONAL_ARTIFACT_KINDS.filter(kind => request.requiredArtifacts.includes(kind))
+    if (extras.length === 0) return []
+    const artifacts: ArtifactRef[] = []
+    for (const kind of extras) {
+      context.signal.throwIfAborted()
+      const reference = jobFile.output_files?.[kind]
+      const renderingId = reference?.file_id
+      if (typeof renderingId !== 'string' || renderingId.trim() === '') {
+        throw archiveInvalid(`Completed file "${jobFile.name ?? String(fileId)}" has no ${kind} output`, fileId)
+      }
+      const temporary = await this.downloadResultArchive(renderingId, sink, context, index)
+      try {
+        artifacts.push(await sink.writeArtifact(fileId, kind, createReadStream(temporary.path), {
+          mediaType: RENDERING_MEDIA_TYPES[kind],
+        }))
+      } finally {
+        await rm(temporary.path, { force: true })
+      }
+    }
+    return artifacts
+  }
+
   private async downloadResultArchive(
     fileId: string,
     sink: ArtifactSink,

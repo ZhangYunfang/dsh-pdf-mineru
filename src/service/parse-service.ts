@@ -4,7 +4,7 @@ import { PROVIDER_TRAITS, effectiveParseDefaults, providerById, type MinerUConfi
 import { computeCacheKey } from '../domain/cache-key.js'
 import { MinerUError, failure, toMinerUFailure } from '../domain/errors.js'
 import type { CacheKey } from '../domain/ids.js'
-import type { CanonicalSourceFile, PreparedParseRequest } from '../domain/request.js'
+import type { ArtifactKind, CanonicalSourceFile, PreparedParseRequest } from '../domain/request.js'
 import type { MinerUResultManifest } from '../domain/result.js'
 import { emitDiagnostic, type MinerUDiagnosticEvent, type MinerUDiagnosticSink } from '../observability.js'
 import { validateProviderCapabilities, type MinerUProvider, type ProviderCallContext, type ProviderJobSnapshot } from '../providers/contract.js'
@@ -49,6 +49,8 @@ export interface EnsurePublishedOptions {
   readonly cacheOnly?: boolean
   /** Provider-native page selection for this parse, e.g. "1-5,8" or "3" (V1 also accepts "r1", "all"). */
   readonly parsePages?: string
+  /** Extra renderings to request beside the canonical artifacts, e.g. ['html','docx']. */
+  readonly outputFormats?: readonly ArtifactKind[]
   /** Synchronous wait bound: omitted uses polling.pollTimeoutMs, null waits for the shared outcome. */
   readonly waitTimeoutMs?: number | null
   readonly onProgress?: ParseProgressListener
@@ -179,7 +181,7 @@ export class ParseService {
   async ensurePublished(sourcePath: string, config: MinerUConfig, signal: AbortSignal, options: EnsurePublishedOptions = {}): Promise<PublishedResult> {
     signal.throwIfAborted()
     reportProgress(options.onProgress, 'preparing')
-    const pending = await this.prepare(sourcePath, config, signal, options.cacheOnly === true, options.parsePages)
+    const pending = await this.prepare(sourcePath, config, signal, options.cacheOnly === true, options.parsePages, options.outputFormats)
     if (pending.kind === 'published') {
       reportProgress(options.onProgress, 'reading-result')
       return pending.result
@@ -209,10 +211,20 @@ export class ParseService {
     return { cacheKey: pending.cacheKey, manifest, source: pending.source, sourceFile: pending.prepared.request.files[0]! }
   }
 
-  private async prepare(sourcePath: string, config: MinerUConfig, signal: AbortSignal, cacheOnly: boolean, parsePages?: string): Promise<Pending> {
+  private async prepare(
+    sourcePath: string,
+    config: MinerUConfig,
+    signal: AbortSignal,
+    cacheOnly: boolean,
+    parsePages?: string,
+    outputFormats?: readonly ArtifactKind[],
+  ): Promise<Pending> {
     const resolved = this.active(config)
     const source = await prepareSource(sourcePath, Math.min(config.limits.maxFileBytes, resolved.provider.capabilities.maxFileBytes ?? config.limits.maxFileBytes), signal)
-    const prepared: PreparedParseRequest = { request: canonicalParseRequest(effectiveParseDefaults(config.defaults, resolved.config), source, parsePages), sources: [source] }
+    const prepared: PreparedParseRequest = {
+      request: canonicalParseRequest(effectiveParseDefaults(config.defaults, resolved.config), source, parsePages, outputFormats),
+      sources: [source],
+    }
     const file = prepared.request.files[0]!
     validateProviderCapabilities(prepared.request, resolved.provider.capabilities)
     const compatibility = resolved.provider.compatibilityKey(prepared.request)

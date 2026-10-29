@@ -96,6 +96,12 @@ function defaultArtifactFileName(kind: ArtifactKind, imageIndex: number): string
       return 'content_list.json'
     case 'images':
       return `images/img_${String(imageIndex)}.png`
+    case 'html':
+      return 'document.html'
+    case 'latex':
+      return 'document.tex'
+    case 'docx':
+      return 'document.docx'
   }
 }
 
