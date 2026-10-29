@@ -4,7 +4,7 @@ import { MinerUError, failure } from '../domain/errors.js'
 import type { MinerUFileState, MinerUJobState } from '../domain/job.js'
 import type { MinerUFileId, MinerUProviderId } from '../domain/ids.js'
 import type { ArtifactRef } from '../domain/result.js'
-import type { ArtifactKind, CanonicalParseRequest, MinerUModel, ParseMethod, PreparedSourceFile } from '../domain/request.js'
+import type { ArtifactKind, CanonicalParseRequest, MinerUModel, ParseMethod, PreparedSource } from '../domain/request.js'
 import type { ProviderRetryOptions } from './http/retry.js'
 
 export interface ProviderCapabilities {
@@ -15,6 +15,8 @@ export interface ProviderCapabilities {
   readonly supportsFormula: boolean
   readonly supportsTable: boolean
   readonly supportsPageRanges: boolean
+  /** Whether `submit` can accept a remote URL source instead of an upload. */
+  readonly supportsUrlSource?: boolean
   readonly supportedArtifacts: readonly ArtifactKind[]
   readonly maxFilesPerSubmission: number
   readonly maxFileBytes?: number
@@ -111,7 +113,7 @@ export interface MinerUProvider {
   compatibilityKey(request: CanonicalParseRequest): string
   submit(
     request: CanonicalParseRequest,
-    sources: readonly PreparedSourceFile[],
+    sources: readonly PreparedSource[],
     context: ProviderCallContext,
   ): Promise<ProviderSubmission>
   inspect(ref: ProviderJobRef, context: ProviderCallContext): Promise<ProviderJobSnapshot>

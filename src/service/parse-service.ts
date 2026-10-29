@@ -4,14 +4,17 @@ import { PROVIDER_TRAITS, effectiveParseDefaults, providerById, type MinerUConfi
 import { computeCacheKey } from '../domain/cache-key.js'
 import { MinerUError, failure, toMinerUFailure } from '../domain/errors.js'
 import type { CacheKey } from '../domain/ids.js'
-import type { ArtifactKind, CanonicalSourceFile, PreparedParseRequest } from '../domain/request.js'
+import { isUrlSource, type ArtifactKind, type CanonicalSourceFile, type PreparedParseRequest } from '../domain/request.js'
+
+/** What a parse operates on: an absolute local path or a remote document URL. */
+export type SourceInput = string | { readonly url: string }
 import type { MinerUResultManifest } from '../domain/result.js'
 import { emitDiagnostic, type MinerUDiagnosticEvent, type MinerUDiagnosticSink } from '../observability.js'
 import { validateProviderCapabilities, type MinerUProvider, type ProviderCallContext, type ProviderJobSnapshot } from '../providers/contract.js'
 import { RateLimitError, rateLimitPolicyFromEnv, rateLimiterFor } from '../providers/http/rate-limit.js'
 import type { ProviderRetryEvent } from '../providers/http/retry.js'
 import type { ProviderFactory } from '../providers/registry.js'
-import { assertSourcesUnchanged, canonicalParseRequest, prepareSource } from '../source/prepared-source.js'
+import { assertSourcesUnchanged, canonicalParseRequest, prepareSource, prepareUrlSource } from '../source/prepared-source.js'
 import type { StorageAccessGate } from '../storage/access-gate.js'
 import type { ResultRepository, ResultTransaction } from '../storage/result-repository.js'
 import type { SharedOperation, SharedOperationRegistry, SharedOutcome } from './shared-operations.js'
@@ -178,10 +181,10 @@ export class ParseService {
    * Return the verified published result for one absolute source path, joining or
    * starting the shared producer. A timed-out wait leaves the producer running.
    */
-  async ensurePublished(sourcePath: string, config: MinerUConfig, signal: AbortSignal, options: EnsurePublishedOptions = {}): Promise<PublishedResult> {
+  async ensurePublished(source: SourceInput, config: MinerUConfig, signal: AbortSignal, options: EnsurePublishedOptions = {}): Promise<PublishedResult> {
     signal.throwIfAborted()
     reportProgress(options.onProgress, 'preparing')
-    const pending = await this.prepare(sourcePath, config, signal, options.cacheOnly === true, options.parsePages, options.outputFormats)
+    const pending = await this.prepare(source, config, signal, options.cacheOnly === true, options.parsePages, options.outputFormats)
     if (pending.kind === 'published') {
       reportProgress(options.onProgress, 'reading-result')
       return pending.result
@@ -212,7 +215,7 @@ export class ParseService {
   }
 
   private async prepare(
-    sourcePath: string,
+    input: SourceInput,
     config: MinerUConfig,
     signal: AbortSignal,
     cacheOnly: boolean,
@@ -220,7 +223,12 @@ export class ParseService {
     outputFormats?: readonly ArtifactKind[],
   ): Promise<Pending> {
     const resolved = this.active(config)
-    const source = await prepareSource(sourcePath, Math.min(config.limits.maxFileBytes, resolved.provider.capabilities.maxFileBytes ?? config.limits.maxFileBytes), signal)
+    const source = typeof input === 'string'
+      ? await prepareSource(input, Math.min(config.limits.maxFileBytes, resolved.provider.capabilities.maxFileBytes ?? config.limits.maxFileBytes), signal)
+      : prepareUrlSource(input.url)
+    if (isUrlSource(source) && resolved.provider.capabilities.supportsUrlSource !== true) {
+      throw new MinerUError(failure('UNSUPPORTED_OPTION', `Provider ${resolved.config.type} does not accept URL sources; download the document first`))
+    }
     const prepared: PreparedParseRequest = {
       request: canonicalParseRequest(effectiveParseDefaults(config.defaults, resolved.config), source, parsePages, outputFormats),
       sources: [source],

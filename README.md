@@ -107,6 +107,7 @@ dsh plugin --profile web add link:/absolute/path/to/dsh-pdf-mineru
 | `async_parse_pdf` | 把整份文档提交为 DSH 后台任务，完成后返回结构摘要；之后用 `read_pdf` 按需阅读 |
 | `mineru_health` | 只探测不解析：服务版本、可用档位、输出格式、来源类型、队列深度与鉴权状态 |
 | `read_pdf` 的 `anchor` | 附带 `<!-- pN bK -->` 引用锚点（原页码 + 页内块序），便于逐页核对引文 |
+| `url` 源 | `async_parse_pdf` / `read_pdf` 可直接给 http(s) 链接，由 MinerU 4 自行抓取（不落本地）；URL 即缓存身份 |
 | `async_parse_pdf` 的 `file_paths` | 批量：一份后台任务解析多份本地文档，逐文档独立缓存与结果，单个失败不影响其余 |
 | `async_parse_pdf` 的 `output_formats` | 额外导出 `html`/`latex`/`docx`（自部署 MinerU 4 支持时），以 artifact 形式出现在 `read_pdf` 的 `focus: "artifacts"` |
 

@@ -29,10 +29,27 @@ export function argumentRecord(args: unknown, allowed: ReadonlySet<string>): Rec
   return record
 }
 
+/** Document name for a URL source: the last path segment, decoded when possible. */
+export function sourceName(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const segment = parsed.pathname.split('/').filter(part => part !== '').at(-1)
+    if (segment === undefined || segment === '') return parsed.hostname
+    try {
+      return decodeURIComponent(segment)
+    } catch {
+      return segment
+    }
+  } catch {
+    return 'document'
+  }
+}
+
 /** Tool-only selectors. Attachment identities never enter the MinerU domain. */
 export type DocumentSource =
-  | { readonly file_path: string; readonly attachment_id?: never }
-  | { readonly attachment_id: string; readonly file_path?: never }
+  | { readonly file_path: string; readonly attachment_id?: never; readonly url?: never }
+  | { readonly attachment_id: string; readonly file_path?: never; readonly url?: never }
+  | { readonly url: string; readonly file_path?: never; readonly attachment_id?: never }
 
 /**
  * A batch is one job over several local paths. Attachments stay single-file:
@@ -56,8 +73,13 @@ export function parseBatchSource(args: Readonly<Record<string, unknown>>): Batch
 }
 
 export function parseDocumentSource(args: Readonly<Record<string, unknown>>): DocumentSource {
-  if ((args.file_path !== undefined) === (args.attachment_id !== undefined)) {
-    throw invalidRequest('Exactly one of file_path or attachment_id is required')
+  const provided = [args.file_path, args.attachment_id, args.url].filter(value => value !== undefined).length
+  if (provided !== 1) {
+    throw invalidRequest('Exactly one of file_path, attachment_id or url is required')
+  }
+  if (args.url !== undefined) {
+    if (typeof args.url !== 'string' || args.url.trim() === '') throw invalidRequest('url must be a non-empty string')
+    return { url: args.url.trim() }
   }
   if (args.file_path !== undefined) {
     if (typeof args.file_path !== 'string' || args.file_path.trim() === '') {
@@ -127,13 +149,18 @@ export function resolveAttachmentPath(
 }
 
 /** Absolute source path: file paths resolve against the caller's effective working directory. */
+/**
+ * Resolve a tool selector to what the parse service consumes: an absolute local
+ * path, or a URL the Provider fetches itself. A URL needs no working directory.
+ */
 export async function resolveSourcePath(
   source: DocumentSource,
   agent: ToolAgent,
   exec: ToolRunContext,
   ctx: Context,
   attachments: AttachmentStore | undefined,
-): Promise<string> {
+): Promise<string | { readonly url: string }> {
+  if (source.url !== undefined) return { url: source.url }
   if (source.file_path === undefined) return resolveAttachmentPath(source.attachment_id, agent.session, attachments)
   return resolve(await ctx.workingDirectory.ensure(agent, exec.signal), source.file_path)
 }

@@ -5,6 +5,7 @@ import { asResultId, createFileId } from '../domain/ids.js'
 import { cursorSelection, type ContentQuery, type ContentSelection, type ReadCursorPayload, type ReadQuery } from '../domain/selection.js'
 import { reportProgress, type ParseProgressListener, type ParseService } from '../service/parse-service.js'
 import type { ArtifactKind } from '../domain/request.js'
+import type { SourceInput } from '../service/parse-service.js'
 import type { StorageAccessGate } from '../storage/access-gate.js'
 import type { ResultRepository } from '../storage/result-repository.js'
 import { collectBlockDiagnostics, DOCUMENT_INDEX_VERSION, normalizeDocumentBlocks } from './document-index.js'
@@ -34,7 +35,7 @@ export class ReaderService {
   constructor(private readonly options: ReaderServiceOptions) {}
 
   /** Read one bounded chunk of a selection; continuations are cache-only. */
-  async readContent(sourcePath: string, query: ContentQuery, config: MinerUConfig, images: ImageSink | undefined, signal: AbortSignal): Promise<ResultView> {
+  async readContent(sourcePath: SourceInput, query: ContentQuery, config: MinerUConfig, images: ImageSink | undefined, signal: AbortSignal): Promise<ResultView> {
     return await this.options.accessGate.runShared(async () => {
       const cursor = query.kind === 'continue' ? query.cursor : undefined
       const published = await this.options.parser.ensurePublished(sourcePath, config, signal, {
@@ -51,7 +52,10 @@ export class ReaderService {
   }
 
   /** Render one original page locally and attach it; never invokes a Provider or persists the source. */
-  async viewPage(sourcePath: string, query: Extract<ReadQuery, { kind: 'page' }>, config: MinerUConfig, images: ImageSink, signal: AbortSignal): Promise<ResultView> {
+  async viewPage(sourcePath: SourceInput, query: Extract<ReadQuery, { kind: 'page' }>, config: MinerUConfig, images: ImageSink, signal: AbortSignal): Promise<ResultView> {
+    if (typeof sourcePath !== 'string') {
+      throw new MinerUError(failure('UNSUPPORTED_OPTION', 'Original-page view renders the local file; a URL source has no local bytes. Parse it to content and read that instead.'))
+    }
     const page = await renderPdfPage({
       file_path: sourcePath, page: query.page, ...(query.expectedSha256 ? { expectedSha256: query.expectedSha256 } : {}),
       maxFileBytes: config.limits.maxFileBytes, signal,
@@ -73,7 +77,7 @@ export class ReaderService {
 
   /** Ensure publication and return a bounded synopsis, never a body projection. */
   async summarize(
-    sourcePath: string,
+    sourcePath: SourceInput,
     config: MinerUConfig,
     signal: AbortSignal,
     onProgress?: ParseProgressListener,

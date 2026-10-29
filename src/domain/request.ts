@@ -62,9 +62,30 @@ export interface PreparedSourceFile extends CanonicalSourceFile {
   }
 }
 
+/**
+ * A remote document the Provider fetches itself. There is no local bytes image,
+ * so the URL is the identity: `sha256` is the digest of the canonical URL and is
+ * what the cache key binds to. Two payloads behind one URL therefore share a
+ * cache entry, which the tool documents; the alternative (downloading first)
+ * would make the plugin depend on the remote host being reachable from here.
+ */
+export interface PreparedUrlSource {
+  readonly fileId: MinerUFileId
+  readonly name: string
+  readonly bytes: 0
+  readonly sha256: string
+  readonly url: string
+}
+
+export type PreparedSource = PreparedSourceFile | PreparedUrlSource
+
+export function isUrlSource(source: PreparedSource): source is PreparedUrlSource {
+  return 'url' in source
+}
+
 export interface PreparedParseRequest {
   readonly request: CanonicalParseRequest
-  readonly sources: readonly PreparedSourceFile[]
+  readonly sources: readonly PreparedSource[]
 }
 
 export interface ParseDefaults {

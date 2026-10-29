@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { basename, extname, isAbsolute } from 'node:path'
 import { computeFileSha256 } from '../utils/crypto.js'
@@ -10,7 +11,10 @@ import {
   CANONICAL_PARSE_REQUEST_SCHEMA_VERSION,
   type CanonicalParseRequest,
   type ParseDefaults,
+  type PreparedSource,
   type PreparedSourceFile,
+  type PreparedUrlSource,
+  isUrlSource,
 } from '../domain/request.js'
 
 const SUPPORTED_EXTENSIONS = new Set([
@@ -51,9 +55,39 @@ export async function prepareSource(path: string, maxFileBytes: number, signal: 
   }
 }
 
-/** Re-stat hashed sources immediately before upload. */
-export async function assertSourcesUnchanged(sources: readonly PreparedSourceFile[], signal: AbortSignal): Promise<void> {
+/**
+ * Build a URL source. Only `http:`/`https:` are accepted: a `file:` or other
+ * scheme would turn the Provider into a local-file reader.
+ *
+ * @param rawUrl - absolute http(s) URL of the document
+ * @returns the source identity used for the request, manifest and cache key
+ */
+export function prepareUrlSource(rawUrl: string): PreparedUrlSource {
+  let parsed: URL
+  try {
+    parsed = new URL(rawUrl)
+  } catch {
+    throw new MinerUError(failure('INVALID_REQUEST', 'url must be an absolute http(s) URL'))
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new MinerUError(failure('UNSUPPORTED_OPTION', `Unsupported URL scheme: ${parsed.protocol}`))
+  }
+  const canonical = parsed.toString()
+  const sha256 = createHash('sha256').update(canonical).digest('hex')
+  const segment = parsed.pathname.split('/').filter(part => part !== '').at(-1) ?? 'document'
+  let name = segment
+  try {
+    name = decodeURIComponent(segment)
+  } catch {
+    /* keep the encoded segment when it is not valid percent-encoding */
+  }
+  return { fileId: createFileId(sha256), name: name === '' ? 'document' : name, bytes: 0, sha256, url: canonical }
+}
+
+/** Re-stat hashed sources immediately before upload; URL sources have nothing to stat. */
+export async function assertSourcesUnchanged(sources: readonly PreparedSource[], signal: AbortSignal): Promise<void> {
   for (const source of sources) {
+    if (isUrlSource(source)) continue
     signal.throwIfAborted()
     let current
     try {
@@ -76,7 +110,7 @@ export async function assertSourcesUnchanged(sources: readonly PreparedSourceFil
  */
 export function canonicalParseRequest(
   defaults: ParseDefaults,
-  source: PreparedSourceFile,
+  source: PreparedSource,
   pages?: string,
   extraArtifacts: readonly ArtifactKind[] = [],
 ): CanonicalParseRequest {

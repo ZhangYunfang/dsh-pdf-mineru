@@ -31,7 +31,7 @@ import type { MinerUFileState, MinerUJobState } from '../../domain/job.js'
 import type { MinerUFileId } from '../../domain/ids.js'
 import { SELF_HOSTED_TIERS, type SelfHostedV1Config } from '../../config/model.js'
 import type { ArtifactRef } from '../../domain/result.js'
-import { OPTIONAL_ARTIFACT_KINDS, type ArtifactKind, type CanonicalParseRequest, type PreparedSourceFile } from '../../domain/request.js'
+import { isUrlSource, OPTIONAL_ARTIFACT_KINDS, type ArtifactKind, type CanonicalParseRequest, type PreparedSource } from '../../domain/request.js'
 import {
   MinerUError,
   type MinerUFailure,
@@ -265,6 +265,7 @@ export class SelfHostedV1Provider implements MinerUProvider {
     models: ['pipeline'], parseMethods: ['auto', 'txt', 'ocr'], supportsOcr: true,
     supportsLanguage: false, supportsFormula: false, supportsTable: false,
     supportsPageRanges: true,
+    supportsUrlSource: true,
     supportedArtifacts: ['markdown', 'layout', 'model-output', 'content-list', 'images', ...OPTIONAL_ARTIFACT_KINDS],
     maxFilesPerSubmission: 10,
   }
@@ -353,7 +354,7 @@ export class SelfHostedV1Provider implements MinerUProvider {
 
   async submit(
     request: CanonicalParseRequest,
-    sources: readonly PreparedSourceFile[],
+    sources: readonly PreparedSource[],
     context: ProviderCallContext,
   ): Promise<ProviderSubmission> {
     context.signal.throwIfAborted()
@@ -365,23 +366,37 @@ export class SelfHostedV1Provider implements MinerUProvider {
     if (health.status !== undefined && health.status !== 'ok' && health.status !== 'healthy') {
       throw new MinerUError(failure('PROVIDER_UNAVAILABLE', 'V1 server reported unhealthy status', true, { provider: this.id }))
     }
-    const issue = this.deploymentIssue(await this.discoverDeployment(context, health))
+    const deployment = await this.discoverDeployment(context, health)
+    const issue = this.deploymentIssue(deployment)
     if (issue !== undefined) throw new MinerUError(failure('UNSUPPORTED_OPTION', issue, false, { provider: this.id }))
 
-    const upstreamFileIds: string[] = []
+    const upstreamFileIds: (string | undefined)[] = []
     for (let index = 0; index < sources.length; index++) {
       context.signal.throwIfAborted()
-      upstreamFileIds.push(await this.uploader.uploadSource(sources[index]!, context))
+      const source = sources[index]!
+      if (isUrlSource(source)) {
+        if (deployment.sourceTypes.includes('url') === false) {
+          throw new MinerUError(failure('UNSUPPORTED_OPTION', 'This V1 deployment does not accept URL sources', false, { provider: this.id }))
+        }
+        upstreamFileIds.push(undefined)
+        continue
+      }
+      upstreamFileIds.push(await this.uploader.uploadSource(source, context))
     }
 
     const pageRange = request.semantics.pages?.trim()
     const tier = this.config.tier
     const extras = await this.requestedRenderings(request, context)
     const payload = {
-      files: upstreamFileIds.map(fileId => ({
-        source: { type: 'file_id', file_id: fileId },
-        ...(pageRange === undefined || pageRange === '' ? {} : { page_range: pageRange }),
-      })),
+      files: upstreamFileIds.map((fileId, index) => {
+        const source = sources[index]!
+        return {
+          source: fileId === undefined && isUrlSource(source)
+            ? { type: 'url', url: source.url }
+            : { type: 'file_id', file_id: String(fileId ?? '') },
+          ...(pageRange === undefined || pageRange === '' ? {} : { page_range: pageRange }),
+        }
+      }),
       ...(tier === undefined ? {} : { tier }),
       ocr_mode: request.semantics.parseMethod,
       output_formats: [SELF_HOSTED_V1_ARCHIVE_FORMAT, ...extras],

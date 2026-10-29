@@ -16,7 +16,7 @@ import { renderResult, type MutableJsonView } from './render.js'
 import { readPdfParameters, resultViewSchema } from './schemas.js'
 import type { ToolDependencies } from './index.js'
 
-const READ_PARAMETER_FIELDS = new Set(['file_path', 'attachment_id', 'pages', 'focus', 'inline_images', 'anchor', 'poll_timeout_ms', 'cursor', 'block_id', 'query', 'view', 'expected_sha256'])
+const READ_PARAMETER_FIELDS = new Set(['file_path', 'attachment_id', 'url', 'pages', 'focus', 'inline_images', 'anchor', 'poll_timeout_ms', 'cursor', 'block_id', 'query', 'view', 'expected_sha256'])
 const PAGE_VIEW_EXCLUDED = ['focus', 'cursor', 'query', 'block_id', 'inline_images', 'poll_timeout_ms']
 
 export interface ReadPdfArguments {
@@ -39,7 +39,8 @@ function parseFocus(value: unknown): Set<FocusKind> {
 }
 
 function parsePageQuery(args: Record<string, unknown>): Extract<ReadQuery, { kind: 'page' }> {
-  if (PAGE_VIEW_EXCLUDED.some(key => args[key] !== undefined)) throw invalidRequest('page view accepts only one source (file_path or attachment_id), pages, and optional expected_sha256')
+  if (PAGE_VIEW_EXCLUDED.some(key => args[key] !== undefined)) throw invalidRequest('page view accepts only one local source (file_path or attachment_id), pages, and optional expected_sha256')
+  if (args.url !== undefined) throw invalidRequest('page view renders the local file; a URL source has no local bytes — read content instead')
   let selected: Set<number> | undefined
   try { selected = normalizePageSelection(args.pages) } catch { throw invalidRequest('page view requires exactly one positive physical page') }
   if (selected === undefined || selected.size !== 1) throw invalidRequest('page view requires exactly one physical page in pages')

@@ -35,7 +35,7 @@ export function selectQuery(
 }
 
 /** A content reader whose projection is a fixture; image attachment, visual accounting and budget fitting stay production code. */
-export function projectedReader(project: (sourcePath: string, query: ContentQuery, signal: AbortSignal) => ResultView | Promise<ResultView> = () => resultView()) {
+export function projectedReader(project: (sourcePath: string | { readonly url: string }, query: ContentQuery, signal: AbortSignal) => ResultView | Promise<ResultView> = () => resultView()) {
   return vi.fn<ToolReader['readContent']>(async (sourcePath, query, config, images, signal) =>
     finishContentChunk(await project(sourcePath, query, signal), images, query.inlineImages, config.output.maxInlineImages, signal))
 }

@@ -5,7 +5,7 @@ import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { MinerUError, failure, toMinerUFailure } from '../domain/errors.js'
 import { formatSingleSummaryProse } from '../reader/prose.js'
 import { resolve as resolvePath } from 'node:path'
-import { argumentRecord, invalidRequest, normalizeParsePageRange, parseBatchSource, parseDocumentSource, requireAgent, resolveSourcePath, type DocumentSource } from './common.js'
+import { argumentRecord, invalidRequest, normalizeParsePageRange, parseBatchSource, parseDocumentSource, requireAgent, resolveSourcePath, sourceName, type DocumentSource } from './common.js'
 import type { ArtifactKind } from '../domain/request.js'
 import { asyncParseOutputSchema, asyncParseParameters } from './schemas.js'
 import type { BackgroundInvocation, ToolDependencies } from './index.js'
@@ -16,7 +16,7 @@ declare module '@deepseek-ai/dsh-jobs' {
   }
 }
 
-const ASYNC_PARAMETER_FIELDS = new Set(['file_path', 'attachment_id', 'file_paths', 'pages', 'output_formats'])
+const ASYNC_PARAMETER_FIELDS = new Set(['file_path', 'attachment_id', 'file_paths', 'url', 'pages', 'output_formats'])
 const RENDERING_FORMATS = ['html', 'latex', 'docx'] as const
 
 /**
@@ -118,8 +118,8 @@ export function asyncParsePdfTool(ctx: Context, deps: ToolDependencies, invocati
       const parsePages = normalizeParsePageRange(extra.pages)
       const outputFormats = parseOutputFormats(extra.output_formats)
       const batch = extra.file_paths === undefined ? undefined : parseBatchSource(extra)
-      if (batch !== undefined && (extra.file_path !== undefined || extra.attachment_id !== undefined)) {
-        throw invalidRequest('file_paths cannot be combined with file_path or attachment_id')
+      if (batch !== undefined && (extra.file_path !== undefined || extra.attachment_id !== undefined || extra.url !== undefined)) {
+        throw invalidRequest('file_paths cannot be combined with file_path, attachment_id or url')
       }
       // A batch replaces the single-source selector entirely, so it never has to
       // satisfy the single-source "exactly one of" rule.
@@ -139,9 +139,12 @@ export function asyncParsePdfTool(ctx: Context, deps: ToolDependencies, invocati
       }
       const config = deps.config()
       const controller = new AbortController()
+      const sourceLabel = sourcePath === undefined
+        ? 'documents'
+        : typeof sourcePath === 'string' ? basename(sourcePath) : sourceName(sourcePath.url)
       const label = batchPaths.length > 0
         ? 'Parse ' + String(batchPaths.length) + ' documents with MinerU'
-        : 'Parse ' + basename(sourcePath!) + ' with MinerU'
+        : 'Parse ' + sourceLabel + ' with MinerU'
       const jobId = jobs.start({
         kind: 'mineru', label, owner: agent.session.id,
         toolCall: { callId: exec.callId, rootCallId: exec.rootCallId },

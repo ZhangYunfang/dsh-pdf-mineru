@@ -159,13 +159,24 @@ const documentSourceParameters = {
     items: { type: 'string', enum: ['html', 'latex', 'docx'] },
     description: 'Extra renderings to export beside the parsed result (self-hosted MinerU 4 supports html/latex/docx when the deployment advertises them). The archive is always produced, so zip is implicit. Requesting a rendering makes it a distinct cache entry.',
   },
+  url: {
+    type: 'string',
+    description: 'Remote document URL (http/https) the Provider fetches itself; nothing is downloaded locally. The canonical URL is the cache identity, so a changed payload behind the same URL reuses the cached parse — vary pages or clear the cache when the remote document changes. Only Providers that advertise URL sources accept it (self-hosted MinerU 4 does). Cannot be combined with file_path or attachment_id.',
+  },
   pages: {
     type: 'string',
     description: 'Parse-time page window in Provider syntax, e.g. "1-5,8". MinerU 4 (self-hosted V1) also accepts "r1" (last page) and "all". The window is part of the cache key: a different window is a different parse. Leave empty to parse the whole document.',
   },
 } satisfies ParameterSchemaSpec
 
-export const asyncParseParameters: ParameterSchemaSpec = documentSourceParameters
+export const asyncParseParameters: ParameterSchemaSpec = {
+  ...documentSourceParameters,
+  file_paths: {
+    type: 'array',
+    items: { type: 'string' },
+    description: 'Batch form of file_path: two or more local document paths parsed by one background job. Each document keeps its own cache entry and result, so one failure does not abort the rest. Cannot be combined with file_path, attachment_id or url.',
+  },
+}
 
 export const readPdfParameters: ParameterSchemaSpec = {
   ...documentSourceParameters,
