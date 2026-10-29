@@ -8,6 +8,7 @@ import type { CanonicalSourceFile, PreparedParseRequest } from '../domain/reques
 import type { MinerUResultManifest } from '../domain/result.js'
 import { emitDiagnostic, type MinerUDiagnosticEvent, type MinerUDiagnosticSink } from '../observability.js'
 import { validateProviderCapabilities, type MinerUProvider, type ProviderCallContext, type ProviderJobSnapshot } from '../providers/contract.js'
+import { RateLimitError, rateLimitPolicyFromEnv, rateLimiterFor } from '../providers/http/rate-limit.js'
 import type { ProviderRetryEvent } from '../providers/http/retry.js'
 import type { ProviderFactory } from '../providers/registry.js'
 import { assertSourcesUnchanged, canonicalParseRequest, prepareSource } from '../source/prepared-source.js'
@@ -73,6 +74,34 @@ export class ParseService {
   private active(config: MinerUConfig): ActiveProvider {
     const provider = providerById(config, config.activeProvider)!
     return { config: provider, provider: this.options.createProvider(provider) }
+  }
+
+  /**
+   * Client-side call budget for one endpoint. MinerU meters per user, so two
+   * profiles pointing at the same deployment share one limiter.
+   */
+  private limiterFor(provider: ProviderConfig) {
+    return rateLimiterFor(provider.baseURL, rateLimitPolicyFromEnv())
+  }
+
+  /**
+   * Wait for a slot, bounded by the operation timeout. A spent daily quota is
+   * reported as a retryable Provider failure rather than as corruption.
+   */
+  private async spendToken(
+    limiter: ReturnType<ParseService['limiterFor']>,
+    kind: 'submit' | 'poll',
+    config: MinerUConfig,
+    signal: AbortSignal,
+  ): Promise<void> {
+    try {
+      await limiter.acquire(kind, signal, Math.min(config.polling.operationTimeoutMs, 60_000))
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        throw new MinerUError(failure('PROVIDER_UNAVAILABLE', error.message, true))
+      }
+      throw error
+    }
   }
 
   private async callContext(
@@ -250,6 +279,8 @@ export class ParseService {
         bytes: requestBytes, waiterCount: operation.waiterCount,
       })
       const call = () => this.callContext(resolved.config, config, signal, operation.id)
+      const limiter = this.limiterFor(resolved.config)
+      await this.spendToken(limiter, 'submit', config, signal)
       const submission = await resolved.provider.submit(prepared.request, prepared.sources, await call())
       let snapshot: ProviderJobSnapshot = submission
       this.diagnostic({
@@ -262,6 +293,7 @@ export class ParseService {
           return { state: 'failed', failure: snapshot.files.find(file => file.failure)?.failure ?? failure('REMOTE_PARSE_FAILED', 'Remote parse failed') }
         }
         await delay(config.polling.pollIntervalMs, undefined, { signal })
+        await this.spendToken(limiter, 'poll', config, signal)
         snapshot = await resolved.provider.inspect(submission.ref, await call())
       }
 
