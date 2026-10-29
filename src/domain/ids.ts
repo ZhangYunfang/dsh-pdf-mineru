@@ -1,7 +1,7 @@
 type Brand<T, Name extends string> = T & { readonly __brand: Name }
 
 /** Canonical Provider protocol types; provider enums, parsers and discriminants derive from this list. */
-export const PROVIDER_TYPES = ['self-hosted-v1', 'self-hosted-legacy-v2', 'official-v4'] as const
+export const PROVIDER_TYPES = ['self-hosted-v1', 'self-hosted-legacy-v2', 'official-v4', 'agent-v1'] as const
 export type MinerUProviderId = typeof PROVIDER_TYPES[number]
 
 export type MinerUResultId = Brand<string, 'MinerUResultId'>

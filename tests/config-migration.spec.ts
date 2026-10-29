@@ -124,7 +124,8 @@ describe('self-hosted provider configuration migration', () => {
       storage:{...input.storage,retainSources:true},limits:{...input.limits,maxZipEntryBytes:-10}}
     const parsed = parseConfigWithMigration(freeze(damaged))
     expect(parsed.config.providers[0]).toMatchObject({type:'self-hosted-legacy-v2',allowInsecureHttp:false,baseURL:'https://localhost:18000',modelMap:{pipeline:'custom-pipeline',vlm:'vlm-engine'}})
-    expect(parsed.config.providers[0]?.apiKeyEnv).toBeUndefined()
+    const first = parsed.config.providers[0] as { apiKeyEnv?: string } | undefined
+    expect(first?.apiKeyEnv).toBeUndefined()
     expect(parsed.config.providers[0]).not.toHaveProperty('tier')
     expect(parsed.config.defaults).toMatchObject({model:'pipeline',formula:true,language:'de'})
     expect(parsed.config.output).toEqual({maxInlineChars:12000,maxInlineImages:8})

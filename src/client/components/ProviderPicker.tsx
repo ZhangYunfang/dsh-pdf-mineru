@@ -10,6 +10,7 @@ const DESCRIPTION: { readonly [T in MinerUProviderId]: MineruKey } = {
   'official-v4': 'provider.official.desc',
   'self-hosted-v1': 'provider.v1.desc',
   'self-hosted-legacy-v2': 'provider.legacy.desc',
+  'agent-v1': 'provider.agent.desc',
 }
 
 /** Native radio group: arrow keys move the selection, every profile keeps its own draft. */

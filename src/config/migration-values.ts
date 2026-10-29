@@ -37,7 +37,7 @@ export function repairLegacyConfigValues(
     }
     used.add(id)
     let provider: ProviderConfig = {...defaults, id: asProviderConfigId(id)}
-    if (provider.type !== 'official-v4') {
+    if (provider.type !== 'official-v4' && provider.type !== 'agent-v1') {
       // Missing/invalid HTTP authorization is never interpreted as consent to plaintext.
       const allowInsecureHttp = typeof raw.allowInsecureHttp === 'boolean' ? raw.allowInsecureHttp : false
       if (typeof raw.allowInsecureHttp !== 'boolean') repaired.add(path + '.allowInsecureHttp')

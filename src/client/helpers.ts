@@ -17,12 +17,13 @@ import { asProviderConfigId } from '../domain/ids.js'
 import type { MineruKey } from './locales.js'
 
 /** Display order of the provider picker: hosted first, then newest self-hosted protocol. */
-export const PROVIDER_ORDER: readonly MinerUProviderId[] = ['official-v4', 'self-hosted-v1', 'self-hosted-legacy-v2']
+export const PROVIDER_ORDER: readonly MinerUProviderId[] = ['agent-v1', 'official-v4', 'self-hosted-v1', 'self-hosted-legacy-v2']
 
 const PROVIDER_LABEL: { readonly [T in MinerUProviderId]: MineruKey } = {
   'official-v4': 'provider.official',
   'self-hosted-v1': 'provider.v1',
   'self-hosted-legacy-v2': 'provider.legacy',
+  'agent-v1': 'provider.agent',
 }
 
 export function providerTypeLabelKey(type: MinerUProviderId): MineruKey {
@@ -194,7 +195,7 @@ export interface CredentialClient {
 }
 
 export function credentialReference(provider: ProviderConfig | undefined): string | undefined {
-  const reference = provider?.apiKeyEnv?.trim()
+  const reference = provider !== undefined && 'apiKeyEnv' in provider ? provider.apiKeyEnv?.trim() : undefined
   return reference === undefined || reference.length === 0 ? undefined : reference
 }
 

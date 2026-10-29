@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added (in progress)
 
+- Tokenless agent API provider (`agent-v1`): a fourth Provider profile that needs no credential (MinerU's IP-rate-limited cloud door), parsing one file or one URL per task and returning Markdown only. Register it by adding a profile with `type: agent-v1` and `baseURL: https://mineru.net`; it is first in the settings picker so the plugin works before any key exists. Requests `txt` are rejected because that door has no text-layer mode. Adapter detail follows.
 - Tokenless agent API adapter (`providers/agent-v1/client.ts`): speaks MinerU's `/api/v1/agent/parse/{file,url}` + `/api/v1/agent/parse/{id}` envelope protocol (no credential, `{ code, msg, data }`, `code === 0` on success), maps our parse options onto the wire names (`is_ocr`, `enable_formula`, `enable_table`, `page_range`), normalizes task states, and classifies 429/5xx as retryable while a semantic refusal stays final. It is not registered as a Provider type yet: the config schema, registry entry and settings projection for a tokenless profile land next, so this commit adds no half-wired surface.
 
 

@@ -18,7 +18,7 @@ export function ConnectionOptions({ id }: { readonly id: string }): ReactNode {
         id="mineru-api-key-env"
         label={t('field.apiKeyEnv')}
         hint={t('field.apiKeyEnv.hint')}
-        value={provider.apiKeyEnv ?? ''}
+        value={'apiKeyEnv' in provider ? provider.apiKeyEnv ?? '' : ''}
         placeholder="MINERU_API_KEY"
         onChange={value => {
           // Official v4 always names a credential; self-hosted profiles may drop it.
@@ -53,7 +53,7 @@ export function ConnectionOptions({ id }: { readonly id: string }): ReactNode {
             id="mineru-allow-http"
             label={t('field.allowHttp')}
             hint={t('field.allowHttp.hint')}
-            checked={provider.allowInsecureHttp}
+            checked={'allowInsecureHttp' in provider ? provider.allowInsecureHttp : false}
             onChange={allowInsecureHttp => { patch({ allowInsecureHttp }) }}
           />
         </>

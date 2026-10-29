@@ -21,6 +21,12 @@ const PROVIDER_SCHEMAS: { readonly [T in MinerUProviderId]: z } = {
     configuredVersion: z.string(),
     allowInsecureHttp: z.boolean(),
   }),
+  'agent-v1': z.object({
+    id: z.string(),
+    type: z.const('agent-v1'),
+    baseURL: z.string(),
+    configuredVersion: z.string(),
+  }),
   'official-v4': z.object({
     id: z.string(),
     type: z.const('official-v4'),

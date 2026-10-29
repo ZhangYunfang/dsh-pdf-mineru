@@ -72,6 +72,7 @@ export type ProviderJobRef =
     }
   | { readonly provider: 'self-hosted-v1'; readonly taskId: string; readonly files: readonly ProviderSubmittedFile[] }
   | { readonly provider: 'official-v4'; readonly batchId: string; readonly files: readonly ProviderSubmittedFile[] }
+  | { readonly provider: 'agent-v1'; readonly taskId: string; readonly files: readonly ProviderSubmittedFile[] }
 
 export interface ProviderSubmission {
   readonly ref: ProviderJobRef

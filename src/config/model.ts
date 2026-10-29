@@ -41,7 +41,18 @@ export interface OfficialV4Config {
   readonly configuredVersion: 'v4'
 }
 
-export type ProviderConfig = SelfHostedV1Config | SelfHostedLegacyV2Config | OfficialV4Config
+/**
+ * MinerU's tokenless cloud door: no credential, IP rate limited, single file,
+ * Markdown only. It exists so the plugin works before any key is configured.
+ */
+export interface AgentV1Config {
+  readonly id: ProviderConfigId
+  readonly type: 'agent-v1'
+  readonly baseURL: string
+  readonly configuredVersion?: string
+}
+
+export type ProviderConfig = SelfHostedV1Config | SelfHostedLegacyV2Config | OfficialV4Config | AgentV1Config
 export type ProviderConfigOf<T extends MinerUProviderId> = Extract<ProviderConfig, { readonly type: T }>
 
 /** Per-protocol facts consulted instead of branching on a provider type. */
@@ -56,6 +67,7 @@ export const PROVIDER_TRAITS: { readonly [T in MinerUProviderId]: ProviderTraits
   'self-hosted-v1': { requiresCredential: false, selectsModel: false },
   'self-hosted-legacy-v2': { requiresCredential: false, selectsModel: true },
   'official-v4': { requiresCredential: true, selectsModel: true },
+  'agent-v1': { requiresCredential: false, selectsModel: false },
 }
 
 export interface StorageConfig {
@@ -111,6 +123,7 @@ export interface MinerUConfig {
 }
 
 const PROVIDER_DEFAULTS: { readonly [T in MinerUProviderId]: () => ProviderConfigOf<T> } = {
+  'agent-v1': () => ({ id: asProviderConfigId('mp_agent_v1'), type: 'agent-v1', baseURL: 'https://mineru.net' }),
   'self-hosted-v1': () => ({ id: asProviderConfigId('mp_self_hosted_v1'), type: 'self-hosted-v1', baseURL: 'http://localhost:8000',
     apiKeyEnv: 'MINERU_API_KEY', ocrMode: 'auto', allowInsecureHttp: true }),
   'self-hosted-legacy-v2': () => ({

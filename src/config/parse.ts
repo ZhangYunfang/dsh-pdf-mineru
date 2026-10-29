@@ -56,6 +56,7 @@ export const PROVIDER_FIELDS: { readonly [T in MinerUProviderId]: ReadonlySet<st
   'self-hosted-v1': new Set(['id', 'type', 'baseURL', 'apiKeyEnv', 'tier', 'ocrMode', 'configuredVersion', 'allowInsecureHttp']),
   'self-hosted-legacy-v2': new Set(['id', 'type', 'baseURL', 'apiKeyEnv', 'modelMap', 'configuredVersion', 'allowInsecureHttp']),
   'official-v4': new Set(['id', 'type', 'baseURL', 'apiKeyEnv', 'models', 'configuredVersion']),
+  'agent-v1': new Set(['id', 'type', 'baseURL', 'configuredVersion']),
 }
 const ALLOWED_MODEL_MAP_KEYS = new Set(['pipeline', 'vlm'])
 const ALLOWED_DEFAULTS_KEYS = new Set(['model', 'ocr', 'parseMethod', 'language', 'formula', 'table'])
@@ -136,6 +137,12 @@ function models(value: unknown, fallback: readonly MinerUModel[]): readonly Mine
 }
 
 const PROVIDER_PARSERS: { readonly [T in MinerUProviderId]: (input: Record<string, unknown>, id: ProviderConfigId) => ProviderConfigOf<T> } = {
+  'agent-v1': (input, id) => ({
+    id,
+    type: 'agent-v1',
+    baseURL: baseUrl(input.baseURL, 'https://mineru.net', false, 'provider.baseURL'),
+    ...(typeof input.configuredVersion === 'string' && input.configuredVersion !== '' ? { configuredVersion: input.configuredVersion } : {}),
+  }),
   'official-v4': (input, id) => ({
     id,
     type: 'official-v4',
@@ -310,6 +317,9 @@ export function parseCanonical(input: Record<string, unknown>, fallback: MinerUC
   if (active.type === 'official-v4') {
     if (!active.models.includes(result.defaults.model)) throw new TypeError('active official provider does not support defaults.model')
     if (result.defaults.parseMethod === 'txt') throw new TypeError('official-v4 cannot use txt as defaults.parseMethod')
+  }
+  if (active.type === 'agent-v1' && result.defaults.parseMethod === 'txt') {
+    throw new TypeError('agent-v1 cannot use txt as defaults.parseMethod')
   }
   if (result.retry.baseDelayMs > result.retry.maxDelayMs) {
     throw new TypeError('retry.baseDelayMs cannot exceed retry.maxDelayMs')

@@ -117,11 +117,11 @@ export class ParseService {
     allowMissingCredential = false,
   ): Promise<ProviderCallContext> {
     signal.throwIfAborted()
-    const reference = provider.apiKeyEnv
+    const reference = 'apiKeyEnv' in provider ? provider.apiKeyEnv : undefined
     const credential = reference === undefined ? undefined : await this.options.resolveCredential(reference, signal)
     signal.throwIfAborted()
     if (PROVIDER_TRAITS[provider.type].requiresCredential && credential === undefined && !allowMissingCredential) {
-      throw new MinerUError(failure('CREDENTIAL_MISSING', `Credential ${provider.apiKeyEnv} is not configured`))
+      throw new MinerUError(failure('CREDENTIAL_MISSING', `Credential ${String(reference)} is not configured`))
     }
     return {
       signal,
