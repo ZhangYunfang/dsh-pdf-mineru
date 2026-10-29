@@ -34,6 +34,27 @@ export type DocumentSource =
   | { readonly file_path: string; readonly attachment_id?: never }
   | { readonly attachment_id: string; readonly file_path?: never }
 
+/**
+ * A batch is one job over several local paths. Attachments stay single-file:
+ * an attachment id names one specific upload, so batching them would have to
+ * invent an ordering contract the session surface does not provide.
+ */
+export type BatchSource = { readonly file_paths: readonly string[] }
+
+export function parseBatchSource(args: Readonly<Record<string, unknown>>): BatchSource {
+  const value = args.file_paths
+  if (!Array.isArray(value) || value.length < 2) {
+    throw invalidRequest('file_paths must be an array of at least two document paths; use file_path for a single document')
+  }
+  const paths: string[] = []
+  for (const entry of value) {
+    if (typeof entry !== 'string' || entry.trim() === '') throw invalidRequest('file_paths entries must be non-empty strings')
+    paths.push(entry.trim())
+  }
+  if (new Set(paths).size !== paths.length) throw invalidRequest('file_paths must not repeat a path; each document is parsed once per job')
+  return { file_paths: paths }
+}
+
 export function parseDocumentSource(args: Readonly<Record<string, unknown>>): DocumentSource {
   if ((args.file_path !== undefined) === (args.attachment_id !== undefined)) {
     throw invalidRequest('Exactly one of file_path or attachment_id is required')

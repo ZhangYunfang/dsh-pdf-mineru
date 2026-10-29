@@ -4,7 +4,8 @@ import type { JobOutcome, JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { MinerUError, failure, toMinerUFailure } from '../domain/errors.js'
 import { formatSingleSummaryProse } from '../reader/prose.js'
-import { argumentRecord, invalidRequest, normalizeParsePageRange, parseDocumentSource, requireAgent, resolveSourcePath, type DocumentSource } from './common.js'
+import { resolve as resolvePath } from 'node:path'
+import { argumentRecord, invalidRequest, normalizeParsePageRange, parseBatchSource, parseDocumentSource, requireAgent, resolveSourcePath, type DocumentSource } from './common.js'
 import type { ArtifactKind } from '../domain/request.js'
 import { asyncParseOutputSchema, asyncParseParameters } from './schemas.js'
 import type { BackgroundInvocation, ToolDependencies } from './index.js'
@@ -15,7 +16,7 @@ declare module '@deepseek-ai/dsh-jobs' {
   }
 }
 
-const ASYNC_PARAMETER_FIELDS = new Set(['file_path', 'attachment_id', 'pages', 'output_formats'])
+const ASYNC_PARAMETER_FIELDS = new Set(['file_path', 'attachment_id', 'file_paths', 'pages', 'output_formats'])
 const RENDERING_FORMATS = ['html', 'latex', 'docx'] as const
 
 /**
@@ -46,6 +47,53 @@ export function parseAsyncArguments(args: unknown): DocumentSource {
   return parseDocumentSource(argumentRecord(args, ASYNC_PARAMETER_FIELDS))
 }
 
+/**
+ * Parse several documents inside one job.
+ *
+ * Each document keeps its own cache key and manifest, so a failure in one never
+ * invalidates the others; the job reports the first outcome as its result and
+ * appends the remaining documents as a per-file summary. Documents are parsed
+ * one at a time so the shared rate limiter and the CPU-bound extraction are not
+ * oversubscribed by a large batch.
+ */
+async function summarizeBatch(
+  deps: ToolDependencies,
+  paths: readonly string[],
+  config: ReturnType<ToolDependencies['config']>,
+  signal: AbortSignal,
+  parsePages: string | undefined,
+  outputFormats: readonly ArtifactKind[] | undefined,
+  onProgress: (phase: 'preparing' | 'waiting-for-parse' | 'reading-result' | 'summarizing') => void,
+) {
+  const views = []
+  const failures: string[] = []
+  for (const path of paths) {
+    signal.throwIfAborted()
+    try {
+      views.push(await deps.reader.summarize(path, config, signal, onProgress, parsePages, outputFormats))
+    } catch (error) {
+      if (signal.aborted) throw error
+      const normalized = toMinerUFailure(error)
+      failures.push(basename(path) + ': [' + normalized.code + '] ' + normalized.message)
+    }
+  }
+  if (views.length === 0) {
+    throw new MinerUError(failure('REMOTE_PARSE_FAILED', 'Every document in the batch failed: ' + failures.join('; ')))
+  }
+  const primary = views[0]!
+  if (failures.length === 0 && views.length === 1) return primary
+  const extra = views.slice(1).map(view => formatSingleSummaryProse(view)).join('\n\n')
+  return {
+    ...primary,
+    warnings: [
+      ...(primary.warnings ?? []),
+      'Batch of ' + String(paths.length) + ' documents: ' + String(views.length) + ' parsed.',
+      ...(failures.length > 0 ? ['Failed: ' + failures.join('; ')] : []),
+    ],
+    ...(extra === '' ? {} : { markdown_content: extra }),
+  }
+}
+
 export function asyncParsePdfTool(ctx: Context, deps: ToolDependencies, invocations: Set<BackgroundInvocation>) {
   return defineTool({
     name: 'async_parse_pdf',
@@ -66,12 +114,24 @@ export function asyncParsePdfTool(ctx: Context, deps: ToolDependencies, invocati
     execute: async (args: unknown, exec: ToolRunContext) => {
       const agent = requireAgent(exec)
       exec.signal.throwIfAborted()
-      const source = parseAsyncArguments(args)
       const extra = argumentRecord(args, ASYNC_PARAMETER_FIELDS)
       const parsePages = normalizeParsePageRange(extra.pages)
       const outputFormats = parseOutputFormats(extra.output_formats)
-      // Resolve the source and take the config snapshot at submission, before the job outlives this call.
-      const sourcePath = await resolveSourcePath(source, agent, exec, ctx, deps.attachments())
+      const batch = extra.file_paths === undefined ? undefined : parseBatchSource(extra)
+      if (batch !== undefined && (extra.file_path !== undefined || extra.attachment_id !== undefined)) {
+        throw invalidRequest('file_paths cannot be combined with file_path or attachment_id')
+      }
+      // A batch replaces the single-source selector entirely, so it never has to
+      // satisfy the single-source "exactly one of" rule.
+      const source = batch === undefined ? parseAsyncArguments(args) : undefined
+      // Resolve every source and take the config snapshot at submission, before the job outlives this call.
+      const sourcePath = source === undefined ? undefined : await resolveSourcePath(source, agent, exec, ctx, deps.attachments())
+      const batchPaths = batch === undefined
+        ? []
+        : await (async () => {
+          const cwd = await ctx.workingDirectory.ensure(agent, exec.signal)
+          return batch.file_paths.map(path => resolvePath(cwd, path))
+        })()
       exec.signal.throwIfAborted()
       const jobs = ctx.get('jobs') as JobRegistry | undefined
       if (jobs === undefined) {
@@ -79,12 +139,17 @@ export function asyncParsePdfTool(ctx: Context, deps: ToolDependencies, invocati
       }
       const config = deps.config()
       const controller = new AbortController()
+      const label = batchPaths.length > 0
+        ? 'Parse ' + String(batchPaths.length) + ' documents with MinerU'
+        : 'Parse ' + basename(sourcePath!) + ' with MinerU'
       const jobId = jobs.start({
-        kind: 'mineru', label: 'Parse ' + basename(sourcePath) + ' with MinerU', owner: agent.session.id,
+        kind: 'mineru', label, owner: agent.session.id,
         toolCall: { callId: exec.callId, rootCallId: exec.rootCallId },
         outputLimitBytes: 48_000,
         run: job => {
-          const done = deps.reader.summarize(sourcePath, config, controller.signal, phase => job.updateProgress(phase), parsePages, outputFormats)
+          const done = (batchPaths.length > 0
+            ? summarizeBatch(deps, batchPaths, config, controller.signal, parsePages, outputFormats, phase => job.updateProgress(phase))
+            : deps.reader.summarize(sourcePath!, config, controller.signal, phase => job.updateProgress(phase), parsePages, outputFormats))
             .then((value): JobOutcome => ({ status: 'completed', detail: 'completed', result: formatSingleSummaryProse(value) }))
             .catch((error): JobOutcome => {
               if (controller.signal.aborted) return { status: 'killed', detail: 'cancelled' }
