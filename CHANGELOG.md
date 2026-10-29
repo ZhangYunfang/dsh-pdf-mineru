@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+### Added (in progress)
+
+- Tokenless agent API adapter (`providers/agent-v1/client.ts`): speaks MinerU's `/api/v1/agent/parse/{file,url}` + `/api/v1/agent/parse/{id}` envelope protocol (no credential, `{ code, msg, data }`, `code === 0` on success), maps our parse options onto the wire names (`is_ocr`, `enable_formula`, `enable_table`, `page_range`), normalizes task states, and classifies 429/5xx as retryable while a semantic refusal stays final. It is not registered as a Provider type yet: the config schema, registry entry and settings projection for a tokenless profile land next, so this commit adds no half-wired surface.
+
+
 ### Added
 
 - `mineru_health` tool: probes the active Provider and reports availability, protocol and server version, authentication state, available tiers, advertised output formats and source types, and queue depth. It never uploads a document and never starts a parse job, so a deployment fault can be diagnosed without parsing.
